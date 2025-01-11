@@ -1,0 +1,5 @@
+DogFight: A multiplayer space shooter game.
+
+Log 1 =>
+  Initialised basic mechanics like spawning camera, assets, sound, movement logic,
+  Next: Third person view. 
