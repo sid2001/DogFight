@@ -1,7 +1,6 @@
-use bevy::prelude::*;
-use bevy::render::color::Color::*;
+use crate::spaceship::{Entities, SpaceShip};
+use bevy::{pbr::*, prelude::*, render::color::Color::*};
 use std::f32::consts::PI;
-use crate::spaceship::SpaceShip;
 
 #[derive(Component)]
 struct MyCameraMarker;
@@ -9,7 +8,7 @@ struct MyCameraMarker;
 #[derive(Bundle)]
 pub struct MyCameraBundle {
     marker: MyCameraMarker,
-    camera: Camera3dBundle
+    camera: Camera3dBundle,
 }
 
 pub struct CameraPlugin;
@@ -17,40 +16,50 @@ pub struct CameraPlugin;
 impl Plugin for CameraPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, setup_camera);
-        .add_systems(Update, follow_spaceship);
+        // .add_systems(Update, follow_spaceship);
     }
 }
 
-fn setup_camera(mut commands: Commands) {
-    commands.spawn((
-        SpotLight {
-            color: Rgba {
-                red: 0.255,
-                blue: 0.255,
-                green: 0.186,
-                alpha: 0.5,
-            },
-            intensity: 40_000.0, // lumens
-            inner_angle: PI / 4.0 * 0.85,
-            outer_angle: PI / 4.0,
+fn setup_camera(mut commands: Commands, mut entities: ResMut<Entities>) {
+    commands.spawn(DirectionalLightBundle {
+        directional_light: DirectionalLight {
+            color: Color::rgb(1.0, 1.0, 0.9), // Slight yellowish tint for sunlight
+            illuminance: 100000.0,            // Brightness of the sunlight
+            shadows_enabled: true,            // Enable shadows
             ..default()
         },
-        Transform::from_xyz(0.0, 0.0, 0.0).looking_at(Vec3::Y, Vec3::Y),
-    ));
-    commands.spawn(
-        MyCameraBundle {
-            camera: Camera3dBundle {
-            transform: Transform::from_xyz(0.0, 0.0, 80.0).looking_at(Vec3::NEG_Z, Vec3::Y),
-            ..default()
-        },
-        marker: MyCameraMarker,
-        }
+        transform: Transform::from_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_4)), // 45° angle
+        ..default()
+    });
+    entities.camera = Some(
+        commands
+            .spawn(MyCameraBundle {
+                camera: Camera3dBundle {
+                    transform: Transform::from_xyz(0.0, -20.0, 40.0)
+                        .looking_at(Vec3::ZERO, Vec3::Y),
+                    ..default()
+                },
+                marker: MyCameraMarker,
+            })
+            .id(),
     );
 }
 
 fn follow_spaceship(
-    mut spaceship_query: Query<&Transform, With<SpaceShip>>,
-    mut camera_query: Query<&Transform, With<MyCameraMarker>>
+    mut query: Query<&mut Transform>,
+    // mut camera_query: Query<&mut Transform, With<MyCameraMarker>>,
+    entity: Res<Entities>,
 ) {
-
+    let v = {
+        let spaceship = query
+            .get(entity.player.unwrap())
+            .expect("Erorr getting player");
+        let &Vec3 { x, y, z } = spaceship.get_field("translation").unwrap();
+        Vec3::new(x, y, z)
+    };
+    let mut camera = query
+        .get_mut(entity.camera.unwrap())
+        .expect("Can't get entitiy camera");
+    // let unit_v = v.normalize();
+    camera.look_at(v, Vec3::Y);
 }

@@ -8,8 +8,11 @@ pub struct Thrust(pub Vec3);
 #[derive(Component, Default)]
 pub struct Inertia {
     pub velocity: Velocity,
-    pub thrust: Thrust,
+    pub thrust: f32,
 }
+
+#[derive(Component, Default)]
+pub struct Direction(pub Vec3);
 
 #[derive(Component)]
 pub struct Position(pub Vec3);
