@@ -1,5 +1,7 @@
-use crate::asset_loader::SceneAssets;
+use crate::asset_loader::{AudioAssets, SceneAssets};
 use crate::camera::setup_camera;
+use crate::camera::MyCameraMarker;
+use crate::events::{ThrottleDownEvent, ThrottleUpEvent};
 use crate::movement::{Direction, Drag, Inertia, Position, Velocity};
 use bevy::audio::PlaybackMode::*;
 use bevy::prelude::*;
@@ -7,7 +9,7 @@ use bevy::prelude::*;
 const DEFAULT_HEALTH: f32 = 100.0;
 const DEFAULT_THRUST: Vec3 = Vec3::new(0.5, 0.5, 0.5);
 const DEFAULT_SPAWN: Vec3 = Vec3::ZERO;
-const DEFAULT_ANGULAR_CHANGE: f32 = 30.0;
+const DEFAULT_ANGULAR_CHANGE: f32 = 10.0;
 const DEFAULT_DIRECTION: (Vec3, Vec3) = (Vec3::Y, Vec3::X);
 const DEFAULT_DRAG: Vec3 = Vec3::new(0.1, 0.1, 0.1);
 const DEFAULT_SPEED_LIMIT: f32 = 1.5;
@@ -33,24 +35,24 @@ pub struct SpaceShipBundle {
     pub inertia: Inertia,
     pub direction: Direction,
     pub model: SceneBundle,
-    pub audio: AudioBundle,
+    // pub engine_audio: AudioBundle,
+    pub throttle_audio: AudioBundle,
     pub drag: Drag,
 }
 pub struct SpaceShipPlugin;
 
 impl Plugin for SpaceShipPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, spawn_spaceship.before(setup_camera))
-            .add_systems(
-                Update,
-                (
-                    spaceship_controls,
-                    accelerate_spaceship,
-                    move_spaceship,
-                    spaceship_orientation,
-                )
-                    .chain(),
-            );
+        app.add_systems(Startup, spawn_spaceship).add_systems(
+            Update,
+            (
+                spaceship_controls,
+                accelerate_spaceship,
+                move_spaceship,
+                spaceship_orientation,
+            )
+                .chain(),
+        );
     }
 }
 
@@ -58,12 +60,17 @@ fn spaceship_controls(
     keys: Res<Input<KeyCode>>,
     mut spaceship_query: Query<(&mut Inertia, &mut Direction), With<SpaceShip>>,
     time: Res<Time>,
+    mut ev_throttle_up: EventWriter<ThrottleUpEvent>,
+    mut ev_throttle_down: EventWriter<ThrottleDownEvent>,
     entity: Res<Entities>,
 ) {
     let (ref mut inertia, ref mut dir) = spaceship_query
         .get_mut(entity.player.unwrap())
         .expect("Can't get entity!");
     if keys.just_pressed(KeyCode::J) {
+        if inertia.thrust == 0. {
+            ev_throttle_up.send(ThrottleUpEvent(entity.player.unwrap()));
+        }
         if inertia.thrust != 6.0 {
             inertia.thrust += 2.0;
         }
@@ -72,9 +79,12 @@ fn spaceship_controls(
         if inertia.thrust != -6.0 {
             inertia.thrust -= 2.0;
         }
+        if inertia.thrust == 0. {
+            ev_throttle_down.send(ThrottleDownEvent(entity.player.unwrap()));
+        }
     }
 
-    if keys.pressed(KeyCode::W) {
+    if keys.pressed(KeyCode::S) {
         // let target = dir.0.cross(dir.1);
         let rotation = Quat::from_axis_angle(
             dir.1,
@@ -83,7 +93,7 @@ fn spaceship_controls(
         dir.0 = rotation.mul_vec3(dir.0);
     }
 
-    if keys.pressed(KeyCode::S) {
+    if keys.pressed(KeyCode::W) {
         let rotation = Quat::from_axis_angle(
             -dir.1,
             DEFAULT_ANGULAR_CHANGE.to_radians() * time.delta_seconds(),
@@ -93,7 +103,7 @@ fn spaceship_controls(
     if keys.pressed(KeyCode::A) {
         let rotation = Quat::from_axis_angle(
             -dir.0,
-            DEFAULT_ANGULAR_CHANGE.to_radians() * time.delta_seconds(),
+            (DEFAULT_ANGULAR_CHANGE + 20.).to_radians() * time.delta_seconds(),
         );
         dir.1 = rotation.mul_vec3(dir.1);
     }
@@ -101,7 +111,7 @@ fn spaceship_controls(
     if keys.pressed(KeyCode::D) {
         let rotation = Quat::from_axis_angle(
             dir.0,
-            DEFAULT_ANGULAR_CHANGE.to_radians() * time.delta_seconds(),
+            (DEFAULT_ANGULAR_CHANGE + 20.).to_radians() * time.delta_seconds(),
         );
         dir.1 = rotation.mul_vec3(dir.1);
     }
@@ -136,8 +146,8 @@ fn accelerate_spaceship(
         .expect("Can't get entitiy!");
 
     let acc = dir.0.normalize_or_zero() * inertia.thrust;
-    info!("acc: {:?}", acc);
-    info!("vel: {:?}", inertia.velocity.0);
+    // info!("acc: {:?}", acc);
+    // info!("vel: {:?}", inertia.velocity.0);
 
     let Vec3 { x, y, z } = inertia.velocity.0.clone();
     inertia.velocity.0.y = if y.abs() <= drag.0.y {
@@ -173,6 +183,7 @@ fn move_spaceship(
         .expect("Error getting entity player!");
 
     trans.translation += iner.velocity.0 * time.delta_seconds();
+    info!("{}", iner.velocity.0.length());
 }
 
 fn spaceship_orientation(
@@ -190,26 +201,10 @@ fn spaceship_orientation(
 
     let roll_curr = trans.right();
     let roll_target = dir.1.clone();
-    // let target_dir = match iner.velocity.0.length() {
-    //     0.0 => curr_dir.normalize_or_zero(),
-    //     _ => dir.0.normalize_or_zero(),
-    // };
-    // let mut target_dir = if iner.velocity.0.length() != 0.0 {
-    //     curr_dir += trans.up() + trans.forward() + trans.right();
-    //     curr_dir = curr_dir.normalize_or_zero();
-    //     -iner.velocity.0.clone().normalize()
-    // } else {
-    //     trans.forward()
-    // };
-    // let res_vector = curr_dir + target_dir;
-    // target_dir = curr_dir + res_vector.normalize_or_zero() * time.delta_seconds();
-    // target_dir.normalize_or_zero();
-    info!("{:?}", curr_dir);
-    info!("{:?}", target_dir);
-    // let rotation = Quat::from_axis_angle(
-    //     curr_dir.cross(target_dir).normalize_or_zero(),
-    //     DEFAULT_ANGULAR_CHANGE.to_radians() * time.delta_seconds(),
-    // );
+
+    // info!("{:?}", curr_dir);
+    // info!("{:?}", target_dir);
+
     let rotation =
         Quat::from_rotation_arc(curr_dir.normalize_or_zero(), target_dir.normalize_or_zero());
 
@@ -221,9 +216,10 @@ fn spaceship_orientation(
     trans.rotate(roll);
 }
 
-fn spawn_spaceship(
+pub fn spawn_spaceship(
     mut commands: Commands,
     scene_assets: Res<SceneAssets>,
+    audio_assets: Res<AudioAssets>,
     asset_server: Res<AssetServer>,
     mut entities: ResMut<Entities>,
 ) {
@@ -246,14 +242,23 @@ fn spawn_spaceship(
                         transform: Transform::from_translation(Vec3::new(0., 10., 0.))
                             // .with_rotation(Quat::from_rotation_y(std::f32::consts::PI))
                             .with_translation(Vec3::new(0.0, 0., 0.0))
+                            .with_scale(Vec3::new(0.5, 0.5, 0.5))
                             .looking_at(Vec3::Y, Vec3::Z),
                         ..default()
                     },
-                    audio: AudioBundle {
-                        source: asset_server.load("sounds/ambient-spacecraft-hum-33119.ogg"),
+                    // engine_audio: AudioBundle {
+                    //     source: audio_assets.engine_humming.clone(),
+                    //     settings: PlaybackSettings {
+                    //         mode: Loop,
+                    //         paused: false,
+                    //         ..default()
+                    //     },
+                    // },
+                    throttle_audio: AudioBundle {
+                        source: audio_assets.throttle_up.clone(),
                         settings: PlaybackSettings {
                             mode: Loop,
-                            paused: false,
+                            paused: true,
                             ..default()
                         },
                     },
