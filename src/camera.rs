@@ -1,7 +1,6 @@
 use crate::spaceship::{Entities, SpaceShip};
 use bevy::{pbr::*, prelude::*, render::color::Color::*};
 use std::f32::consts::PI;
-
 #[derive(Component)]
 struct MyCameraMarker;
 
@@ -20,7 +19,7 @@ impl Plugin for CameraPlugin {
     }
 }
 
-fn setup_camera(mut commands: Commands, mut entities: ResMut<Entities>) {
+pub fn setup_camera(mut commands: Commands, mut entities: ResMut<Entities>) {
     commands.spawn(DirectionalLightBundle {
         directional_light: DirectionalLight {
             color: Color::rgb(1.0, 1.0, 0.9), // Slight yellowish tint for sunlight
@@ -35,8 +34,7 @@ fn setup_camera(mut commands: Commands, mut entities: ResMut<Entities>) {
         commands
             .spawn(MyCameraBundle {
                 camera: Camera3dBundle {
-                    transform: Transform::from_xyz(0.0, -20.0, 40.0)
-                        .looking_at(Vec3::ZERO, Vec3::Y),
+                    transform: Transform::from_xyz(0.0, -2.0, 0.0).looking_at(Vec3::Y, Vec3::Z),
                     ..default()
                 },
                 marker: MyCameraMarker,
