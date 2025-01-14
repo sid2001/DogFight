@@ -2,6 +2,7 @@ use crate::movement::Direction;
 use crate::spaceship::{Entities, SpaceShip};
 use bevy::{pbr::*, prelude::*, render::color::Color::*};
 use std::f32::consts::PI;
+use std::time;
 #[derive(Component)]
 pub struct MyCameraMarker;
 
@@ -53,27 +54,32 @@ fn follow_spaceship(
     mut cam_query: Query<&mut Transform, With<MyCameraMarker>>,
     entity: Res<Entities>,
     mut sp_query: Query<(&Transform, &mut Direction), (With<SpaceShip>, Without<MyCameraMarker>)>,
+    time: Res<Time>,
 ) {
     let (trans, sp_dir) = sp_query
         .get(entity.player.unwrap())
         .expect("Error while player!");
     let v = trans.translation.clone();
-    // let sp = sp_queryy.get(entity.player.unwrap()).expect("Errorsf");
+
     let mut camera = cam_query
         .get_mut(entity.camera.unwrap())
         .expect("Can't get entitiy camera");
-    // let unit_v = v.normalize();
 
-    camera.translation = v - sp_dir.0.normalize().clone() * 1.5;
-    // camera.rotation = sp.0.clone().normalize();
-    let rotation = Quat::from_rotation_arc(
-        camera.forward().normalize_or_zero(),
-        sp_dir.0,
-        // ((sp.0.clone().normalize() - camera.forward().clone()).normalize() / 2.
-        //     + camera.forward().clone())
-        // .normalize(),
-    );
+    let cam = camera.translation.clone();
+    camera.translation += (v - sp_dir.0.normalize().clone() - cam) * time.delta_seconds() * 5.;
+
+    let mut rotation = Quat::from_rotation_arc(camera.forward().normalize_or_zero(), sp_dir.0);
+
+    ///* this is a correct method but give camera it's own coordinate plane axes
+    ///* let angle = (sp_dir
+    ///*     .0
+    ///*     .clone()
+    ///*     .normalize_or_zero()
+    ///*     .dot(camera.forward().clone().normalize_or_zero()))
+    ///* .acos();
+    ///* rotation = Quat::from_axis_angle(
+    ///*     sp_dir.1.clone().cross(sp_dir.0.clone()),
+    ///*     angle * time.delta_seconds(),
+    ///* );
     camera.rotate(rotation);
-    // camera.rotate_around(v, rotation);
-    // camera.as_deref_mut() = camera.looking_to(sp.0.clone(), sp.1.cross(sp.0).normalize());
 }

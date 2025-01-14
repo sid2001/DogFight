@@ -9,7 +9,8 @@ use bevy::prelude::*;
 const DEFAULT_HEALTH: f32 = 100.0;
 const DEFAULT_THRUST: Vec3 = Vec3::new(0.5, 0.5, 0.5);
 const DEFAULT_SPAWN: Vec3 = Vec3::ZERO;
-const DEFAULT_ANGULAR_CHANGE: f32 = 10.0;
+const DEFAULT_ANGULAR_CHANGE: f32 = 40.0;
+const DEFAULT_ROLL_ANGULAR_CHANGE: f32 = 100.0;
 const DEFAULT_DIRECTION: (Vec3, Vec3) = (Vec3::Y, Vec3::X);
 const DEFAULT_DRAG: Vec3 = Vec3::new(0.1, 0.1, 0.1);
 const DEFAULT_SPEED_LIMIT: f32 = 1.5;
@@ -103,7 +104,7 @@ fn spaceship_controls(
     if keys.pressed(KeyCode::A) {
         let rotation = Quat::from_axis_angle(
             -dir.0,
-            (DEFAULT_ANGULAR_CHANGE + 20.).to_radians() * time.delta_seconds(),
+            DEFAULT_ROLL_ANGULAR_CHANGE.to_radians() * time.delta_seconds(),
         );
         dir.1 = rotation.mul_vec3(dir.1);
     }
@@ -111,7 +112,7 @@ fn spaceship_controls(
     if keys.pressed(KeyCode::D) {
         let rotation = Quat::from_axis_angle(
             dir.0,
-            (DEFAULT_ANGULAR_CHANGE + 20.).to_radians() * time.delta_seconds(),
+            DEFAULT_ROLL_ANGULAR_CHANGE.to_radians() * time.delta_seconds(),
         );
         dir.1 = rotation.mul_vec3(dir.1);
     }
@@ -150,17 +151,17 @@ fn accelerate_spaceship(
     // info!("vel: {:?}", inertia.velocity.0);
 
     let Vec3 { x, y, z } = inertia.velocity.0.clone();
-    inertia.velocity.0.y = if y.abs() <= drag.0.y {
+    inertia.velocity.0.y = if y.abs() <= drag.0.y * time.delta_seconds() {
         0.0
     } else {
         (y / y.abs()) * (y.abs() - drag.0.y * time.delta_seconds())
     };
-    inertia.velocity.0.x = if x.abs() <= drag.0.x {
+    inertia.velocity.0.x = if x.abs() <= drag.0.x * time.delta_seconds() {
         0.0
     } else {
         (x / x.abs()) * (x.abs() - drag.0.x * time.delta_seconds())
     };
-    inertia.velocity.0.z = if z.abs() <= drag.0.z {
+    inertia.velocity.0.z = if z.abs() <= drag.0.z * time.delta_seconds() {
         0.0
     } else {
         (z / z.abs()) * (z.abs() - drag.0.z * time.delta_seconds())
