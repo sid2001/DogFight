@@ -12,7 +12,7 @@ const DEFAULT_SPAWN: Vec3 = Vec3::ZERO;
 const DEFAULT_ANGULAR_CHANGE: f32 = 40.0;
 const DEFAULT_ROLL_ANGULAR_CHANGE: f32 = 100.0;
 const DEFAULT_DIRECTION: (Vec3, Vec3) = (Vec3::Y, Vec3::X);
-const DEFAULT_DRAG: Vec3 = Vec3::new(0.1, 0.1, 0.1);
+const DEFAULT_DRAG: Vec3 = Vec3::new(0.2, 0.2, 0.2);
 const DEFAULT_SPEED_LIMIT: f32 = 1.5;
 // const STARTING_TRANSLATION: Vec3 = Vec3::new(0.0, 20.0, 0.0);
 
@@ -51,6 +51,7 @@ impl Plugin for SpaceShipPlugin {
                 accelerate_spaceship,
                 move_spaceship,
                 spaceship_orientation,
+                // adjust_drag,
             )
                 .chain(),
         );
@@ -138,40 +139,44 @@ fn spaceship_controls(
 }
 
 fn accelerate_spaceship(
-    mut spaceship_query: Query<(&mut Inertia, &Drag, &Direction), With<SpaceShip>>,
+    mut spaceship_query: Query<(&mut Inertia, &mut Drag, &Direction), With<SpaceShip>>,
     time: Res<Time>,
     entity: Res<Entities>,
 ) {
-    let (mut inertia, drag, dir) = spaceship_query
+    let (mut inertia, mut drag, dir) = spaceship_query
         .get_mut(entity.player.unwrap())
         .expect("Can't get entitiy!");
 
     let acc = dir.0.normalize_or_zero() * inertia.thrust;
     // info!("acc: {:?}", acc);
     // info!("vel: {:?}", inertia.velocity.0);
+    let Vec3 {
+        mut x,
+        mut y,
+        mut z,
+    } = inertia.velocity.0.clone();
 
-    let Vec3 { x, y, z } = inertia.velocity.0.clone();
-    inertia.velocity.0.y = if y.abs() <= drag.0.y * time.delta_seconds() {
+    Vec3 { x, y, z } = inertia.velocity.0 + acc * time.delta_seconds();
+
+    y = if y.abs() <= drag.0.y * time.delta_seconds() {
         0.0
     } else {
         (y / y.abs()) * (y.abs() - drag.0.y * time.delta_seconds())
     };
-    inertia.velocity.0.x = if x.abs() <= drag.0.x * time.delta_seconds() {
+    x = if x.abs() <= drag.0.x * time.delta_seconds() {
         0.0
     } else {
         (x / x.abs()) * (x.abs() - drag.0.x * time.delta_seconds())
     };
-    inertia.velocity.0.z = if z.abs() <= drag.0.z * time.delta_seconds() {
+    z = if z.abs() <= drag.0.z * time.delta_seconds() {
         0.0
     } else {
         (z / z.abs()) * (z.abs() - drag.0.z * time.delta_seconds())
     };
-    let next_velocity = inertia.velocity.0 + acc * time.delta_seconds();
-    inertia.velocity.0 = if next_velocity.length() > DEFAULT_SPEED_LIMIT {
-        next_velocity.normalize() * DEFAULT_SPEED_LIMIT
-    } else {
-        next_velocity
-    };
+    inertia.velocity.0 = Vec3 { x, y, z };
+
+    ///* come up with a better drag function */
+    drag.0 = (inertia.velocity.0.clone() * 2.).abs();
 }
 
 fn move_spaceship(

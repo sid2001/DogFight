@@ -1,4 +1,4 @@
-use crate::movement::Direction;
+use crate::movement::{Direction, Inertia, Velocity};
 use crate::spaceship::{Entities, SpaceShip};
 use bevy::{pbr::*, prelude::*, render::color::Color::*};
 use std::f32::consts::PI;
@@ -52,11 +52,14 @@ pub fn setup_camera(mut commands: Commands, mut entities: ResMut<Entities>) {
 
 fn follow_spaceship(
     mut cam_query: Query<&mut Transform, With<MyCameraMarker>>,
+    mut sp_query: Query<
+        (&Transform, &mut Direction, &Inertia),
+        (With<SpaceShip>, Without<MyCameraMarker>),
+    >,
     entity: Res<Entities>,
-    mut sp_query: Query<(&Transform, &mut Direction), (With<SpaceShip>, Without<MyCameraMarker>)>,
     time: Res<Time>,
 ) {
-    let (trans, sp_dir) = sp_query
+    let (trans, sp_dir, iner) = sp_query
         .get(entity.player.unwrap())
         .expect("Error while player!");
     let v = trans.translation.clone();
@@ -64,6 +67,10 @@ fn follow_spaceship(
     let mut camera = cam_query
         .get_mut(entity.camera.unwrap())
         .expect("Can't get entitiy camera");
+
+    ///* find a way to calcuate a factor so that the camera speed changes with spacecraft velocity
+    let factor = iner.velocity.0.clone()
+        - Vec3::new(1., 1., 1.) * iner.velocity.0.clone().normalize_or_zero();
 
     let cam = camera.translation.clone();
     camera.translation += (v - sp_dir.0.normalize().clone() - cam) * time.delta_seconds() * 5.;
