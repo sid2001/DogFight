@@ -33,8 +33,6 @@ fn spawn_obstacles(mut commands: Commands, scene_assets: Res<SceneAssets>) {
 
     commands.spawn((
         ObstacleBundle {
-            // scale: Vec3::new(2., 2., 2.),
-            // visibility: Visibility::Visible,
             obstacle: Obstacle {
                 visibility: Visibility::Visible,
                 // scene: SceneBundle {

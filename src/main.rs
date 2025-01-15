@@ -4,7 +4,9 @@ mod environment;
 mod events;
 mod movement;
 mod obstacle;
+mod sets;
 mod spaceship;
+mod states;
 
 use bevy::prelude::*;
 
@@ -14,6 +16,8 @@ use environment::LandscapePlugin;
 use events::EventPlugin;
 use obstacle::ObstaclePlugin;
 use spaceship::{Entities, SpaceShipPlugin};
+use states::GameState;
+use states::StatePlugin;
 
 fn main() {
     App::new()
@@ -25,5 +29,6 @@ fn main() {
         .add_plugins(CameraPlugin)
         .add_plugins(SpaceShipPlugin)
         .add_plugins(ObstaclePlugin)
+        .add_plugins(StatePlugin)
         .run();
 }

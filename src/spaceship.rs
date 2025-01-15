@@ -3,6 +3,8 @@ use crate::camera::setup_camera;
 use crate::camera::MyCameraMarker;
 use crate::events::{ThrottleDownEvent, ThrottleUpEvent};
 use crate::movement::{Direction, Drag, Inertia, Position, Velocity};
+use crate::sets::*;
+use crate::states::*;
 use bevy::audio::PlaybackMode::*;
 use bevy::prelude::*;
 
@@ -10,6 +12,7 @@ const DEFAULT_HEALTH: f32 = 100.0;
 const DEFAULT_THRUST: Vec3 = Vec3::new(0.5, 0.5, 0.5);
 const DEFAULT_SPAWN: Vec3 = Vec3::ZERO;
 const DEFAULT_ANGULAR_CHANGE: f32 = 40.0;
+const DEFAULT_THRUST_LIMIT: f32 = 18.0;
 const DEFAULT_ROLL_ANGULAR_CHANGE: f32 = 100.0;
 const DEFAULT_DIRECTION: (Vec3, Vec3) = (Vec3::Y, Vec3::X);
 const DEFAULT_DRAG: Vec3 = Vec3::new(0.2, 0.2, 0.2);
@@ -44,16 +47,24 @@ pub struct SpaceShipPlugin;
 
 impl Plugin for SpaceShipPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, spawn_spaceship).add_systems(
+        app.add_systems(
+            Startup,
+            spawn_spaceship
+                .in_set(SetupSet::InGame(InGameSet::SpaceShip))
+                .run_if(in_state(GameState::InGame(InGameStates::Play))),
+        )
+        .add_systems(
             Update,
             (
-                spaceship_controls,
+                spaceship_controls.in_set(InputSet::InGame(Controls::InGame(InGameSet::SpaceShip))),
                 accelerate_spaceship,
                 move_spaceship,
                 spaceship_orientation,
                 // adjust_drag,
             )
-                .chain(),
+                .chain()
+                .in_set(UpdateSet::InGame(InGameSet::SpaceShip))
+                .after(SetupSet::InGame(InGameSet::SpaceShip)),
         );
     }
 }
@@ -73,12 +84,12 @@ fn spaceship_controls(
         if inertia.thrust == 0. {
             ev_throttle_up.send(ThrottleUpEvent(entity.player.unwrap()));
         }
-        if inertia.thrust != 6.0 {
+        if inertia.thrust != DEFAULT_THRUST_LIMIT {
             inertia.thrust += 2.0;
         }
     }
     if keys.just_pressed(KeyCode::K) {
-        if inertia.thrust != -6.0 {
+        if inertia.thrust != -DEFAULT_THRUST_LIMIT {
             inertia.thrust -= 2.0;
         }
         if inertia.thrust == 0. {
@@ -175,7 +186,7 @@ fn accelerate_spaceship(
     };
     inertia.velocity.0 = Vec3 { x, y, z };
 
-    ///* come up with a better drag function */
+    //* come up with a better drag function
     drag.0 = (inertia.velocity.0.clone() * 2.).abs();
 }
 
