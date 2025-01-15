@@ -1,6 +1,5 @@
-use std::default;
-
 use bevy::prelude::*;
+use std::default;
 trait MenuItem {}
 trait InGameState {}
 
@@ -49,6 +48,14 @@ impl Plugin for StatePlugin {
             .add_systems(Update, state_event_control);
     }
 }
+
+// pub struct GameStatePlugin;
+// impl Plugin for GameStatePlugin {
+//   fn build(&self, app: &mut App) {
+//     app.add_state::<InGameState>()
+//     .add_systems()
+//   }
+// }
 
 fn state_event_control(
     curr_state: Res<State<GameState>>,

@@ -1,4 +1,3 @@
-use crate::spaceship::spawn_spaceship;
 use bevy::prelude::*;
 use bevy::render::render_resource::Source;
 #[derive(Resource, Debug, Default)]

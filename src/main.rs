@@ -1,21 +1,14 @@
 mod asset_loader;
-mod camera;
-mod environment;
 mod events;
-mod movement;
-mod obstacle;
+mod game;
 mod sets;
-mod spaceship;
 mod states;
 
-use bevy::prelude::*;
-
 use asset_loader::AssetLoaderPlugin;
-use camera::CameraPlugin;
-use environment::LandscapePlugin;
+use bevy::prelude::*;
 use events::EventPlugin;
-use obstacle::ObstaclePlugin;
-use spaceship::{Entities, SpaceShipPlugin};
+use game::spaceship::Entities;
+use game::GamePlugin;
 use states::GameState;
 use states::StatePlugin;
 
@@ -25,10 +18,8 @@ fn main() {
         .add_plugins(AssetLoaderPlugin)
         .init_resource::<Entities>()
         .add_plugins(EventPlugin)
-        .add_plugins(LandscapePlugin)
-        .add_plugins(CameraPlugin)
-        .add_plugins(SpaceShipPlugin)
-        .add_plugins(ObstaclePlugin)
         .add_plugins(StatePlugin)
+        .add_plugins(GamePlugin)
+        // .add_plugins(MenuPlugin)
         .run();
 }

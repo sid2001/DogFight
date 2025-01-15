@@ -1,5 +1,5 @@
-use crate::movement::Inertia;
-use crate::spaceship::{Entities, SpaceShip};
+use crate::game::movement::Inertia;
+use crate::game::spaceship::{Entities, SpaceShip};
 use bevy::prelude::*;
 
 #[derive(Event)]

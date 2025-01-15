@@ -1,8 +1,7 @@
+use super::camera::MyCameraMarker;
+use super::movement::{Direction, Drag, Inertia, Position, Velocity};
 use crate::asset_loader::{AudioAssets, SceneAssets};
-use crate::camera::setup_camera;
-use crate::camera::MyCameraMarker;
 use crate::events::{ThrottleDownEvent, ThrottleUpEvent};
-use crate::movement::{Direction, Drag, Inertia, Position, Velocity};
 use crate::sets::*;
 use crate::states::*;
 use bevy::audio::PlaybackMode::*;
@@ -64,7 +63,8 @@ impl Plugin for SpaceShipPlugin {
             )
                 .chain()
                 .in_set(UpdateSet::InGame(InGameSet::SpaceShip))
-                .after(SetupSet::InGame(InGameSet::SpaceShip)),
+                .run_if(in_state(GameState::InGame(InGameStates::Play))),
+            // .after(SetupSet::InGame(InGameSet::SpaceShip))
         );
     }
 }

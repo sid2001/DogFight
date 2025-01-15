@@ -1,8 +1,9 @@
-use crate::movement::{Direction, Inertia, Velocity};
-use crate::spaceship::{Entities, SpaceShip};
+use super::movement::{Direction, Inertia, Velocity};
+use super::spaceship::{Entities, SpaceShip};
 use bevy::{pbr::*, prelude::*, render::color::Color::*};
 use std::f32::consts::PI;
 use std::time;
+
 #[derive(Component)]
 pub struct MyCameraMarker;
 
