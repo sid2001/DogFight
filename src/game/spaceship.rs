@@ -1,5 +1,4 @@
-use super::camera::MyCameraMarker;
-use super::movement::{Direction, Drag, Inertia, Position, Velocity};
+use super::movement::{Direction, Drag, Inertia, Position};
 use crate::asset_loader::{AudioAssets, SceneAssets};
 use crate::events::{ThrottleDownEvent, ThrottleUpEvent};
 use crate::sets::*;
@@ -37,9 +36,11 @@ pub struct SpaceShipBundle {
     pub position: Position,
     pub inertia: Inertia,
     pub direction: Direction,
-    pub model: SceneBundle,
+    pub model: SceneRoot,
+    pub transform: Transform,
     // pub engine_audio: AudioBundle,
-    pub throttle_audio: AudioBundle,
+    pub playback_settings: PlaybackSettings,
+    pub throttle_audio: AudioPlayer,
     pub drag: Drag,
 }
 pub struct SpaceShipPlugin;
@@ -70,7 +71,7 @@ impl Plugin for SpaceShipPlugin {
 }
 
 fn spaceship_controls(
-    keys: Res<Input<KeyCode>>,
+    keys: Res<ButtonInput<KeyCode>>,
     mut spaceship_query: Query<(&mut Inertia, &mut Direction), With<SpaceShip>>,
     time: Res<Time>,
     mut ev_throttle_up: EventWriter<ThrottleUpEvent>,
@@ -80,7 +81,7 @@ fn spaceship_controls(
     let (ref mut inertia, ref mut dir) = spaceship_query
         .get_mut(entity.player.unwrap())
         .expect("Can't get entity!");
-    if keys.just_pressed(KeyCode::J) {
+    if keys.just_pressed(KeyCode::KeyJ) {
         if inertia.thrust == 0. {
             ev_throttle_up.send(ThrottleUpEvent(entity.player.unwrap()));
         }
@@ -88,7 +89,7 @@ fn spaceship_controls(
             inertia.thrust += 2.0;
         }
     }
-    if keys.just_pressed(KeyCode::K) {
+    if keys.just_pressed(KeyCode::KeyK) {
         if inertia.thrust != -DEFAULT_THRUST_LIMIT {
             inertia.thrust -= 2.0;
         }
@@ -97,34 +98,34 @@ fn spaceship_controls(
         }
     }
 
-    if keys.pressed(KeyCode::S) {
+    if keys.pressed(KeyCode::KeyS) {
         // let target = dir.0.cross(dir.1);
         let rotation = Quat::from_axis_angle(
             dir.1,
-            DEFAULT_ANGULAR_CHANGE.to_radians() * time.delta_seconds(),
+            DEFAULT_ANGULAR_CHANGE.to_radians() * time.delta_secs(),
         );
         dir.0 = rotation.mul_vec3(dir.0);
     }
 
-    if keys.pressed(KeyCode::W) {
+    if keys.pressed(KeyCode::KeyW) {
         let rotation = Quat::from_axis_angle(
             -dir.1,
-            DEFAULT_ANGULAR_CHANGE.to_radians() * time.delta_seconds(),
+            DEFAULT_ANGULAR_CHANGE.to_radians() * time.delta_secs(),
         );
         dir.0 = rotation.mul_vec3(dir.0);
     }
-    if keys.pressed(KeyCode::A) {
+    if keys.pressed(KeyCode::KeyA) {
         let rotation = Quat::from_axis_angle(
             -dir.0,
-            DEFAULT_ROLL_ANGULAR_CHANGE.to_radians() * time.delta_seconds(),
+            DEFAULT_ROLL_ANGULAR_CHANGE.to_radians() * time.delta_secs(),
         );
         dir.1 = rotation.mul_vec3(dir.1);
     }
 
-    if keys.pressed(KeyCode::D) {
+    if keys.pressed(KeyCode::KeyD) {
         let rotation = Quat::from_axis_angle(
             dir.0,
-            DEFAULT_ROLL_ANGULAR_CHANGE.to_radians() * time.delta_seconds(),
+            DEFAULT_ROLL_ANGULAR_CHANGE.to_radians() * time.delta_secs(),
         );
         dir.1 = rotation.mul_vec3(dir.1);
     }
@@ -134,17 +135,17 @@ fn spaceship_controls(
         inertia.velocity.0.x = if x.abs() < 0.1 {
             0.0
         } else {
-            x / (1.0 + 1. * time.delta_seconds())
+            x / (1.0 + 1. * time.delta_secs())
         };
         inertia.velocity.0.y = if y.abs() < 0.1 {
             0.0
         } else {
-            y / (1.0 + 1. * time.delta_seconds())
+            y / (1.0 + 1. * time.delta_secs())
         };
         inertia.velocity.0.z = if z.abs() < 0.1 {
             0.0
         } else {
-            z / (1.0 + 1. * time.delta_seconds())
+            z / (1.0 + 1. * time.delta_secs())
         };
     }
 }
@@ -161,28 +162,27 @@ fn accelerate_spaceship(
     let acc = dir.0.normalize_or_zero() * inertia.thrust;
     // info!("acc: {:?}", acc);
     // info!("vel: {:?}", inertia.velocity.0);
+
     let Vec3 {
         mut x,
         mut y,
         mut z,
-    } = inertia.velocity.0.clone();
+    } = inertia.velocity.0.clone() + acc * time.delta_secs();
 
-    Vec3 { x, y, z } = inertia.velocity.0 + acc * time.delta_seconds();
-
-    y = if y.abs() <= drag.0.y * time.delta_seconds() {
+    y = if y.abs() <= drag.0.y * time.delta_secs() {
         0.0
     } else {
-        (y / y.abs()) * (y.abs() - drag.0.y * time.delta_seconds())
+        (y / y.abs()) * (y.abs() - drag.0.y * time.delta_secs())
     };
-    x = if x.abs() <= drag.0.x * time.delta_seconds() {
+    x = if x.abs() <= drag.0.x * time.delta_secs() {
         0.0
     } else {
-        (x / x.abs()) * (x.abs() - drag.0.x * time.delta_seconds())
+        (x / x.abs()) * (x.abs() - drag.0.x * time.delta_secs())
     };
-    z = if z.abs() <= drag.0.z * time.delta_seconds() {
+    z = if z.abs() <= drag.0.z * time.delta_secs() {
         0.0
     } else {
-        (z / z.abs()) * (z.abs() - drag.0.z * time.delta_seconds())
+        (z / z.abs()) * (z.abs() - drag.0.z * time.delta_secs())
     };
     inertia.velocity.0 = Vec3 { x, y, z };
 
@@ -199,16 +199,16 @@ fn move_spaceship(
         .get_mut(entity.player.unwrap())
         .expect("Error getting entity player!");
 
-    trans.translation += iner.velocity.0 * time.delta_seconds();
+    trans.translation += iner.velocity.0 * time.delta_secs();
     info!("{}", iner.velocity.0.length());
 }
 
 fn spaceship_orientation(
-    mut query: Query<(&mut Transform, &Direction, &Inertia), With<SpaceShip>>,
+    mut query: Query<(&mut Transform, &Direction), With<SpaceShip>>,
     entities: Res<Entities>,
     // time: Res<Time>,
 ) {
-    let (ref mut trans, dir, iner) = query
+    let (ref mut trans, dir) = query
         .get_mut(entities.player.unwrap())
         .expect("Cannot get player entity!");
 
@@ -237,7 +237,6 @@ pub fn spawn_spaceship(
     mut commands: Commands,
     scene_assets: Res<SceneAssets>,
     audio_assets: Res<AudioAssets>,
-    asset_server: Res<AssetServer>,
     mut entities: ResMut<Entities>,
 ) {
     if let Some(spaceship_scene) = scene_assets.spaceship.clone().into() {
@@ -254,15 +253,12 @@ pub fn spawn_spaceship(
                         ..default()
                     },
                     direction: Direction(DEFAULT_DIRECTION.0.clone(), DEFAULT_DIRECTION.1.clone()),
-                    model: SceneBundle {
-                        scene: spaceship_scene,
-                        transform: Transform::from_translation(Vec3::new(0., 10., 0.))
-                            // .with_rotation(Quat::from_rotation_y(std::f32::consts::PI))
-                            .with_translation(Vec3::new(0.0, 0., 0.0))
-                            .with_scale(Vec3::new(0.5, 0.5, 0.5))
-                            .looking_at(Vec3::Y, Vec3::Z),
-                        ..default()
-                    },
+                    model: SceneRoot(spaceship_scene),
+                    transform: Transform::from_translation(Vec3::new(0., 10., 0.))
+                        // .with_rotation(Quat::from_rotation_y(std::f32::consts::PI))
+                        .with_translation(Vec3::new(0.0, 0., 0.0))
+                        .with_scale(Vec3::new(0.5, 0.5, 0.5))
+                        .looking_at(Vec3::Y, Vec3::Z),
                     // engine_audio: AudioBundle {
                     //     source: audio_assets.engine_humming.clone(),
                     //     settings: PlaybackSettings {
@@ -271,13 +267,11 @@ pub fn spawn_spaceship(
                     //         ..default()
                     //     },
                     // },
-                    throttle_audio: AudioBundle {
-                        source: audio_assets.throttle_up.clone(),
-                        settings: PlaybackSettings {
-                            mode: Loop,
-                            paused: true,
-                            ..default()
-                        },
+                    throttle_audio: AudioPlayer(audio_assets.throttle_up.clone()),
+                    playback_settings: PlaybackSettings {
+                        mode: Loop,
+                        paused: true,
+                        ..default()
                     },
                 },))
                 .id(),

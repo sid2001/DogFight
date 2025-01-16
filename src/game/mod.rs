@@ -1,15 +1,15 @@
 pub mod camera;
 pub mod environment;
+pub mod mesh;
 pub mod movement;
 pub mod obstacle;
 pub mod spaceship;
 
 use bevy::prelude::*;
 
-use crate::states::GameState;
-use crate::states::StatePlugin;
 use camera::CameraPlugin;
 use environment::LandscapePlugin;
+use mesh::TestMeshPlugin;
 use obstacle::ObstaclePlugin;
 use spaceship::SpaceShipPlugin;
 

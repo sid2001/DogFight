@@ -1,5 +1,4 @@
 use bevy::prelude::*;
-use bevy::render::render_resource::Source;
 #[derive(Resource, Debug, Default)]
 pub struct SceneAssets {
     pub spaceship: Handle<Scene>,

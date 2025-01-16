@@ -1,5 +1,4 @@
-use crate::game::movement::Inertia;
-use crate::game::spaceship::{Entities, SpaceShip};
+use crate::game::spaceship::SpaceShip;
 use bevy::prelude::*;
 
 #[derive(Event)]
@@ -22,7 +21,7 @@ fn throttle_sound_on(
     mut query: Query<&AudioSink, With<SpaceShip>>,
 ) {
     for entity in ev_throttle_up.read() {
-        if let Ok(mut bun) = query.get_mut(entity.0) {
+        if let Ok(bun) = query.get_mut(entity.0) {
             error!("up recv");
             bun.play();
         } else {

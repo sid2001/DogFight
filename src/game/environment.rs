@@ -18,11 +18,11 @@ fn generate_land(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    let land = PbrBundle {
-        mesh: meshes.add(Mesh::from(shape::Plane::from_size(15.0))),
-        material: materials.add(Color::DARK_GREEN.into()),
-        ..default()
-    };
+    // let land = PbrBundle {
+    //     mesh: meshes.add(Mesh::from(shape::Plane::from_size(15.0))),
+    //     material: materials.add(Color::DARK_GREEN.into()),
+    //     ..default()
+    // };
 
-    commands.spawn(land);
+    // commands.spawn(land);
 }

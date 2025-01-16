@@ -10,5 +10,5 @@ opt-level = 1
 opt-level = 3
 
 [dependencies]
-bevy = "0.12"
-bevy_panorbit_camera = "0.19.3"
+bevy = "0.15"
+bevy_panorbit_camera = "0.21"
