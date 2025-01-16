@@ -24,14 +24,7 @@ use bevy::{
 
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins)
-        .add_plugins(AssetLoaderPlugin)
-        .init_resource::<Entities>()
-        .add_plugins(EventPlugin)
-        .add_plugins(StatePlugin)
-        .add_plugins(GamePlugin)
-        .add_plugins(PanOrbitCameraPlugin)
-        .add_systems(Startup, setup)
+        // .add_plugins(DefaultPlugins)
         .add_plugins((
             DefaultPlugins.set(RenderPlugin {
                 render_creation: RenderCreation::Automatic(WgpuSettings {
@@ -44,6 +37,13 @@ fn main() {
             // You need to add this plugin to enable wireframe rendering
             WireframePlugin,
         ))
+        .add_plugins(AssetLoaderPlugin)
+        .init_resource::<Entities>()
+        .add_plugins(EventPlugin)
+        .add_plugins(StatePlugin)
+        .add_plugins(GamePlugin)
+        // .add_plugins(PanOrbitCameraPlugin)
+        // .add_systems(Startup, setup)
         // Wireframes can be configured with this resource. This can be changed at runtime.
         .insert_resource(WireframeConfig {
             // The global wireframe config enables drawing of wireframes on every mesh,

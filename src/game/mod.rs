@@ -16,9 +16,11 @@ use spaceship::SpaceShipPlugin;
 pub struct GamePlugin;
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(LandscapePlugin)
+        app
+            // .add_plugins(LandscapePlugin)
             .add_plugins(CameraPlugin)
             .add_plugins(SpaceShipPlugin)
-            .add_plugins(ObstaclePlugin);
+            // .add_plugins(ObstaclePlugin)
+            .add_plugins(TestMeshPlugin);
     }
 }

@@ -1,4 +1,5 @@
 use crate::asset_loader::SceneAssets;
+use bevy::pbr::wireframe::Wireframe;
 use bevy::prelude::*;
 
 #[derive(Component)]
@@ -16,6 +17,7 @@ pub struct ObstacleBundle {
     pub marker: ObstacleMarker,
     pub scene: SceneRoot,
     pub transform: Transform,
+    pub wireframe: Wireframe,
 }
 
 pub struct ObstaclePlugin;
@@ -31,6 +33,7 @@ fn spawn_obstacles(mut commands: Commands, scene_assets: Res<SceneAssets>) {
         obstacle: Obstacle,
         marker: ObstacleMarker::Obstacle(1),
         scene: SceneRoot(scene_assets.asteroid.clone()),
+        wireframe: Wireframe,
         transform: Transform::from_xyz(1., 5., 5.).with_scale(Vec3::new(1., 1., 1.)),
     },));
 
@@ -38,6 +41,7 @@ fn spawn_obstacles(mut commands: Commands, scene_assets: Res<SceneAssets>) {
         obstacle: Obstacle,
         marker: ObstacleMarker::Obstacle(2),
         scene: SceneRoot(scene_assets.asteroid.clone()),
+        wireframe: Wireframe,
         transform: Transform::from_xyz(1., 1., -5.).with_scale(Vec3::new(1., 1., 1.)),
     },));
 }

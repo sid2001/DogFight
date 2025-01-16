@@ -56,7 +56,7 @@ fn follow_spaceship(
     entity: Res<Entities>,
     time: Res<Time>,
 ) {
-    let (trans, sp_dir, _iner) = sp_query
+    let (trans, sp_dir, iner) = sp_query
         .get(entity.player.unwrap())
         .expect("Error while player!");
     let v = trans.translation.clone();
@@ -70,7 +70,10 @@ fn follow_spaceship(
     //     - Vec3::new(1., 1., 1.) * iner.velocity.0.clone().normalize_or_zero();
 
     let cam = camera.translation.clone();
-    camera.translation += (v - sp_dir.0.normalize().clone() - cam) * time.delta_secs() * 5.;
+    camera.translation += (v - sp_dir.0.normalize().clone() - cam)
+        * time.delta_secs()
+        * iner.velocity.0.length()
+        * 2.;
 
     let rotation = Quat::from_rotation_arc(camera.forward().normalize_or_zero(), sp_dir.0);
 
