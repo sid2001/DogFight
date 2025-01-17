@@ -22,8 +22,8 @@ fn setup_mesh(
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
     let length: f32 = 100.;
-    let l_pieces: u32 = 300;
-    let w_pieces: u32 = 200;
+    let l_pieces: u32 = 200;
+    let w_pieces: u32 = 300;
     let axes = (Vec3::Y, Vec3::Z);
     let origin = Vec3::new(0., 0., 0.);
 
@@ -49,7 +49,7 @@ fn create_mesh(
         for j in 0..l_pieces {
             let d1 = (j as f32) * l_int;
             let d2 = (i as f32) * w_int;
-            info!("{:?}", get_tridinate(d1, d2, &origin, &axes));
+            // info!("{:?}", get_tridinate(d1, d2, &origin, &axes));
             vertices.push(get_tridinate(d1, d2, &origin, &axes))
         }
     }
@@ -85,6 +85,6 @@ fn create_mesh(
 
 fn get_tridinate(d1: f32, d2: f32, origin: &Vec3, axes: &(Vec3, Vec3)) -> Vec3 {
     let mut vertex = *origin + d1 * axes.0 + d2 * axes.1;
-    // vertex.x = (vertex.y).sin();
+    vertex.x = (vertex.y).sin();
     vertex
 }

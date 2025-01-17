@@ -110,17 +110,17 @@ fn load_bullet(
 
 fn shoot_turret(
     mut commands: Commands,
-    query: Query<(Entity, &Turret, &Transform, &GlobalTransform), With<TurretMarker>>,
+    query: Query<(&Turret, &Transform, &GlobalTransform), With<TurretMarker>>,
     bullet: Res<TurretBullet>,
 ) {
-    for (entity, tur, trans, gt) in query.iter() {
+    for (tur, trans, gt) in query.iter() {
         match &tur.0.shooting {
             true => {
                 commands.spawn((
                     SceneRoot(bullet.handle.clone()),
                     Transform::from_translation(gt.translation().clone())
                         .with_scale(Vec3::ONE * tur.0.bullet_size.clone())
-                        .with_rotation(trans.rotation.clone()),
+                        .with_rotation(gt.rotation().clone()),
                     BulletMarker,
                     Bullet {
                         speed: tur.0.speed.clone(),

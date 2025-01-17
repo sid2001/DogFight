@@ -16,7 +16,7 @@ const DEFAULT_ROLL_BOOST: f32 = 60.;
 const DEFAULT_THRUST_LIMIT: f32 = 18.0;
 const DEFAULT_ROLL_ANGULAR_CHANGE: f32 = 100.0;
 const DEFAULT_DIRECTION: (Vec3, Vec3) = (Vec3::Y, Vec3::X);
-const DEFAULT_DRAG: Vec3 = Vec3::new(0.2, 0.2, 0.2);
+const DEFAULT_DRAG: Vec3 = Vec3::new(0.0, 0.0, 0.0);
 const DEFAULT_SPEED_LIMIT: f32 = 1.5;
 // const STARTING_TRANSLATION: Vec3 = Vec3::new(0.0, 20.0, 0.0);
 
@@ -92,8 +92,8 @@ fn spaceship_controls(
         // if inertia.thrust == 0. {
         // }
         if inertia.thrust != DEFAULT_THRUST_LIMIT {
-            ev_throttle_up.send(ThrottleUpEvent(entity.player.unwrap()));
             inertia.thrust += 2.0;
+            ev_throttle_up.send(ThrottleUpEvent(entity.player.unwrap()));
         }
     }
     if keys.just_pressed(KeyCode::KeyK) {
@@ -109,7 +109,7 @@ fn spaceship_controls(
         let mut ang = DEFAULT_ANGULAR_CHANGE;
         let mut ang_roll = DEFAULT_ROLL_ANGULAR_CHANGE;
         if keys.pressed(KeyCode::ShiftLeft) {
-            ang += DEFAULT_STEERING_BOOST;
+            // ang += DEFAULT_STEERING_BOOST;
             ang_roll += DEFAULT_ROLL_BOOST;
         }
         if keys.pressed(KeyCode::KeyS) {
@@ -133,22 +133,27 @@ fn spaceship_controls(
         }
     }
     if keys.pressed(KeyCode::Space) {
-        let Vec3 { x, y, z } = inertia.velocity.0;
-        inertia.velocity.0.x = if x.abs() < 0.1 {
+        let Vec3 {
+            mut x,
+            mut y,
+            mut z,
+        } = inertia.velocity.0;
+        x = if x.abs() < 0.1 {
             0.0
         } else {
             x / (1.0 + 1. * time.delta_secs())
         };
-        inertia.velocity.0.y = if y.abs() < 0.1 {
+        y = if y.abs() < 0.1 {
             0.0
         } else {
             y / (1.0 + 1. * time.delta_secs())
         };
-        inertia.velocity.0.z = if z.abs() < 0.1 {
+        z = if z.abs() < 0.1 {
             0.0
         } else {
             z / (1.0 + 1. * time.delta_secs())
         };
+        inertia.velocity.0 = Vec3 { x, y, z };
     }
 
     if keys.pressed(KeyCode::KeyL) {
@@ -300,7 +305,7 @@ pub fn spawn_spaceship(
                         Turret(TurretBundle {
                             shooting: false,
                             speed: 10.,
-                            bullet_size: 0.0001,
+                            bullet_size: 0.0002,
                             ..default()
                         }),
                         AudioPlayer(audio_assets.laser_turret.clone()),
@@ -320,7 +325,7 @@ pub fn spawn_spaceship(
                         Turret(TurretBundle {
                             shooting: false,
                             speed: 10.,
-                            bullet_size: 0.0001,
+                            bullet_size: 0.0002,
                             ..default()
                         }),
                         TurretMarker,

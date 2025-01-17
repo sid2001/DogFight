@@ -1,3 +1,4 @@
+// pub mod bots;
 pub mod camera;
 pub mod environment;
 pub mod mesh;
@@ -21,11 +22,11 @@ impl Plugin for GamePlugin {
         app.add_plugins(TurretPlugin {
             bullet_scene_path: String::from("lazer_bullet.glb#Scene0"),
         })
-        .add_plugins(LandscapePlugin)
+        // .add_plugins(LandscapePlugin)
         .add_plugins(TurretEventPlugin)
         .add_plugins(CameraPlugin)
-        .add_plugins(SpaceShipPlugin);
-        // .add_plugins(ObstaclePlugin)
-        // .add_plugins(TestMeshPlugin);
+        .add_plugins(SpaceShipPlugin)
+        .add_plugins(ObstaclePlugin)
+        .add_plugins(TestMeshPlugin);
     }
 }
