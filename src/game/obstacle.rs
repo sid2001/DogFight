@@ -1,4 +1,5 @@
 use crate::asset_loader::SceneAssets;
+use bevy::pbr::wireframe::Wireframe;
 use bevy::prelude::*;
 
 #[derive(Component)]
@@ -8,16 +9,15 @@ pub enum ObstacleMarker {
 }
 
 #[derive(Component)]
-pub struct Obstacle {
-    visibility: Visibility,
-    // scene: SceneBundle,
-}
+pub struct Obstacle;
 
 #[derive(Bundle)]
 pub struct ObstacleBundle {
     pub obstacle: Obstacle,
     pub marker: ObstacleMarker,
-    scene: SceneBundle, // pub visibility: Visibility,
+    pub scene: SceneRoot,
+    pub transform: Transform,
+    pub wireframe: Wireframe,
 }
 
 pub struct ObstaclePlugin;
@@ -29,61 +29,19 @@ impl Plugin for ObstaclePlugin {
 }
 
 fn spawn_obstacles(mut commands: Commands, scene_assets: Res<SceneAssets>) {
-    // let scene = scene_assets.asteroid.clone();
+    commands.spawn((ObstacleBundle {
+        obstacle: Obstacle,
+        marker: ObstacleMarker::Obstacle(1),
+        scene: SceneRoot(scene_assets.asteroid.clone()),
+        wireframe: Wireframe,
+        transform: Transform::from_xyz(1., 5., 5.).with_scale(Vec3::new(1., 1., 1.)),
+    },));
 
-    commands.spawn((
-        ObstacleBundle {
-            obstacle: Obstacle {
-                visibility: Visibility::Visible,
-                // scene: SceneBundle {
-                //     visibility: Visibility::Visible,
-                //     scene: scene_assets.asteroid.clone(),
-                //     transform: Transform::from_xyz(1., 1., 1.).with_scale(Vec3::new(2., 2., 2.)),
-                //     ..default()
-                // },
-            },
-            marker: ObstacleMarker::Obstacle(1),
-            scene: SceneBundle {
-                // visibility: Visibility::Visible,
-                scene: scene_assets.asteroid.clone(),
-                transform: Transform::from_xyz(1., 5., 5.).with_scale(Vec3::new(1., 1., 1.)),
-                ..default()
-            },
-        },
-        // SceneBundle {
-        //     // visibility: Visibility::Visible,
-        //     scene: scene_assets.asteroid.clone(),
-        //     transform: Transform::from_xyz(1., 5., 5.).with_scale(Vec3::new(2., 2., 2.)),
-        //     ..default()
-        // },
-    ));
-
-    commands.spawn((
-        ObstacleBundle {
-            // visibility: Visibility::Visible,
-            // scale: Vec3::new(2., 2., 2.),
-            obstacle: Obstacle {
-                visibility: Visibility::Visible,
-                // scene: SceneBundle {
-                //     visibility: Visibility::Visible,
-                //     scene: scene_assets.asteroid.clone(),
-                //     transform: Transform::from_xyz(0., 0., 0.).with_scale(Vec3::new(1., 1., 1.)),
-                //     ..default()
-                // },
-            },
-            marker: ObstacleMarker::Obstacle(2),
-            scene: SceneBundle {
-                // visibility: Visibility::Visible,
-                scene: scene_assets.asteroid.clone(),
-                transform: Transform::from_xyz(1., 1., -5.).with_scale(Vec3::new(1., 1., 1.)),
-                ..default()
-            },
-        },
-        // SceneBundle {
-        //     // visibility: Visibility::Visible,
-        //     // scene: scene_assets.asteroid.clone(),
-        //     // transform: Transform::from_xyz(1., 1., -5.).with_scale(Vec3::new(1., 1., 1.)),
-        //     ..default()
-        // },
-    ));
+    commands.spawn((ObstacleBundle {
+        obstacle: Obstacle,
+        marker: ObstacleMarker::Obstacle(2),
+        scene: SceneRoot(scene_assets.asteroid.clone()),
+        wireframe: Wireframe,
+        transform: Transform::from_xyz(1., 1., -5.).with_scale(Vec3::new(1., 1., 1.)),
+    },));
 }

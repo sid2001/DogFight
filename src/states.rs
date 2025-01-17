@@ -1,7 +1,8 @@
 use bevy::prelude::*;
-use std::default;
 trait MenuItem {}
 trait InGameState {}
+
+impl InGameState for InGameStates {}
 
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
 pub enum MenuItems {
@@ -16,6 +17,23 @@ pub enum InGameStates {
     Paused,
     #[default]
     Play,
+}
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, States)]
+pub enum SpaceShipActionState {
+    Shooting(Action),
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, States)]
+pub enum Action {
+    True,
+    // #[default]
+    False,
+}
+
+impl Default for SpaceShipActionState {
+    fn default() -> Self {
+        Self::Shooting(Action::False)
+    }
 }
 
 // pub enum GameState<T, U>
@@ -44,7 +62,7 @@ impl Default for GameState {
 pub struct StatePlugin;
 impl Plugin for StatePlugin {
     fn build(&self, app: &mut App) {
-        app.add_state::<GameState>()
+        app.init_state::<GameState>()
             .add_systems(Update, state_event_control);
     }
 }
@@ -60,7 +78,7 @@ impl Plugin for StatePlugin {
 fn state_event_control(
     curr_state: Res<State<GameState>>,
     mut next_state: ResMut<NextState<GameState>>,
-    keys: Res<Input<KeyCode>>,
+    keys: Res<ButtonInput<KeyCode>>,
 ) {
     error!("Press");
     match keys.just_pressed(KeyCode::Tab) {
