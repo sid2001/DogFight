@@ -1,15 +1,18 @@
 use super::movement::{Direction, Drag, Inertia, Position};
+use super::turret::*;
 use crate::asset_loader::{AudioAssets, SceneAssets};
 use crate::events::{ThrottleDownEvent, ThrottleUpEvent};
 use crate::sets::*;
 use crate::states::*;
-use bevy::audio::PlaybackMode::*;
+use bevy::audio::{PlaybackMode::*, Volume};
 use bevy::prelude::*;
 
 const DEFAULT_HEALTH: f32 = 100.0;
 const DEFAULT_THRUST: Vec3 = Vec3::new(0.5, 0.5, 0.5);
 const DEFAULT_SPAWN: Vec3 = Vec3::ZERO;
-const DEFAULT_ANGULAR_CHANGE: f32 = 40.0;
+const DEFAULT_ANGULAR_CHANGE: f32 = 50.0;
+const DEFAULT_STEERING_BOOST: f32 = 0.;
+const DEFAULT_ROLL_BOOST: f32 = 60.;
 const DEFAULT_THRUST_LIMIT: f32 = 18.0;
 const DEFAULT_ROLL_ANGULAR_CHANGE: f32 = 100.0;
 const DEFAULT_DIRECTION: (Vec3, Vec3) = (Vec3::Y, Vec3::X);
@@ -71,65 +74,64 @@ impl Plugin for SpaceShipPlugin {
 }
 
 fn spaceship_controls(
-    keys: Res<ButtonInput<KeyCode>>,
     mut spaceship_query: Query<(&mut Inertia, &mut Direction), With<SpaceShip>>,
-    time: Res<Time>,
+    mut turret_query: Query<(Entity, &mut Turret), (With<TurretMarker>, Without<SpaceShip>)>,
     mut ev_throttle_up: EventWriter<ThrottleUpEvent>,
     mut ev_throttle_down: EventWriter<ThrottleDownEvent>,
+    mut ev_turret_off: EventWriter<ShootTurretEventOff>,
+    mut ev_turret_on: EventWriter<ShootTurretEventOn>,
+    keys: Res<ButtonInput<KeyCode>>,
+    time: Res<Time>,
     entity: Res<Entities>,
 ) {
     let (ref mut inertia, ref mut dir) = spaceship_query
         .get_mut(entity.player.unwrap())
         .expect("Can't get entity!");
+
     if keys.just_pressed(KeyCode::KeyJ) {
-        if inertia.thrust == 0. {
-            ev_throttle_up.send(ThrottleUpEvent(entity.player.unwrap()));
-        }
+        // if inertia.thrust == 0. {
+        // }
         if inertia.thrust != DEFAULT_THRUST_LIMIT {
+            ev_throttle_up.send(ThrottleUpEvent(entity.player.unwrap()));
             inertia.thrust += 2.0;
         }
     }
     if keys.just_pressed(KeyCode::KeyK) {
         if inertia.thrust != -DEFAULT_THRUST_LIMIT {
             inertia.thrust -= 2.0;
-        }
-        if inertia.thrust == 0. {
             ev_throttle_down.send(ThrottleDownEvent(entity.player.unwrap()));
         }
+        // if inertia.thrust == 0. {
+        // }
     }
 
-    if keys.pressed(KeyCode::KeyS) {
-        // let target = dir.0.cross(dir.1);
-        let rotation = Quat::from_axis_angle(
-            dir.1,
-            DEFAULT_ANGULAR_CHANGE.to_radians() * time.delta_secs(),
-        );
-        dir.0 = rotation.mul_vec3(dir.0);
-    }
+    {
+        let mut ang = DEFAULT_ANGULAR_CHANGE;
+        let mut ang_roll = DEFAULT_ROLL_ANGULAR_CHANGE;
+        if keys.pressed(KeyCode::ShiftLeft) {
+            ang += DEFAULT_STEERING_BOOST;
+            ang_roll += DEFAULT_ROLL_BOOST;
+        }
+        if keys.pressed(KeyCode::KeyS) {
+            // let target = dir.0.cross(dir.1);
+            let rotation = Quat::from_axis_angle(dir.1, ang.to_radians() * time.delta_secs());
+            dir.0 = rotation.mul_vec3(dir.0);
+        }
 
-    if keys.pressed(KeyCode::KeyW) {
-        let rotation = Quat::from_axis_angle(
-            -dir.1,
-            DEFAULT_ANGULAR_CHANGE.to_radians() * time.delta_secs(),
-        );
-        dir.0 = rotation.mul_vec3(dir.0);
-    }
-    if keys.pressed(KeyCode::KeyA) {
-        let rotation = Quat::from_axis_angle(
-            -dir.0,
-            DEFAULT_ROLL_ANGULAR_CHANGE.to_radians() * time.delta_secs(),
-        );
-        dir.1 = rotation.mul_vec3(dir.1);
-    }
+        if keys.pressed(KeyCode::KeyW) {
+            let rotation = Quat::from_axis_angle(-dir.1, ang.to_radians() * time.delta_secs());
+            dir.0 = rotation.mul_vec3(dir.0);
+        }
+        if keys.pressed(KeyCode::KeyA) {
+            let rotation = Quat::from_axis_angle(-dir.0, ang_roll.to_radians() * time.delta_secs());
+            dir.1 = rotation.mul_vec3(dir.1);
+        }
 
-    if keys.pressed(KeyCode::KeyD) {
-        let rotation = Quat::from_axis_angle(
-            dir.0,
-            DEFAULT_ROLL_ANGULAR_CHANGE.to_radians() * time.delta_secs(),
-        );
-        dir.1 = rotation.mul_vec3(dir.1);
+        if keys.pressed(KeyCode::KeyD) {
+            let rotation = Quat::from_axis_angle(dir.0, ang_roll.to_radians() * time.delta_secs());
+            dir.1 = rotation.mul_vec3(dir.1);
+        }
     }
-
     if keys.pressed(KeyCode::Space) {
         let Vec3 { x, y, z } = inertia.velocity.0;
         inertia.velocity.0.x = if x.abs() < 0.1 {
@@ -147,6 +149,21 @@ fn spaceship_controls(
         } else {
             z / (1.0 + 1. * time.delta_secs())
         };
+    }
+
+    if keys.pressed(KeyCode::KeyL) {
+        for (ent, mut tur) in turret_query.iter_mut() {
+            error!("relesed");
+            tur.0.shooting = true;
+            tur.0.bullet_inertial_velocity = inertia.velocity.0.clone();
+            ev_turret_on.send(ShootTurretEventOn(ent.clone()));
+        }
+    }
+    if keys.just_released(KeyCode::KeyL) {
+        for (ent, mut tur) in turret_query.iter_mut() {
+            tur.0.shooting = false;
+            ev_turret_off.send(ShootTurretEventOff(ent.clone()));
+        }
     }
 }
 
@@ -241,6 +258,15 @@ pub fn spawn_spaceship(
 ) {
     if let Some(spaceship_scene) = scene_assets.spaceship.clone().into() {
         info!("spawning spacehip");
+        commands.spawn((
+            AudioPlayer(audio_assets.engine_humming.clone()),
+            PlaybackSettings {
+                mode: Loop,
+                paused: false,
+                volume: Volume::new(2.),
+                ..default()
+            },
+        ));
         entities.player = Some(
             commands
                 .spawn((SpaceShipBundle {
@@ -259,21 +285,48 @@ pub fn spawn_spaceship(
                         .with_translation(Vec3::new(0.0, 0., 0.0))
                         .with_scale(Vec3::new(0.5, 0.5, 0.5))
                         .looking_at(Vec3::Y, Vec3::Z),
-                    // engine_audio: AudioBundle {
-                    //     source: audio_assets.engine_humming.clone(),
-                    //     settings: PlaybackSettings {
-                    //         mode: Loop,
-                    //         paused: false,
-                    //         ..default()
-                    //     },
-                    // },
                     throttle_audio: AudioPlayer(audio_assets.throttle_up.clone()),
                     playback_settings: PlaybackSettings {
                         mode: Loop,
                         paused: true,
+                        volume: Volume::new(0.0),
                         ..default()
                     },
                 },))
+                .with_children(|parent| {
+                    parent.spawn((
+                        Transform::from_xyz(0.085, 0., 0.16)
+                            .with_scale(Vec3::new(0.001, 0.001, 0.001)),
+                        Turret(TurretBundle {
+                            shooting: false,
+                            speed: 10.,
+                            bullet_size: 0.0001,
+                            ..default()
+                        }),
+                        AudioPlayer(audio_assets.laser_turret.clone()),
+                        PlaybackSettings {
+                            mode: Loop,
+                            paused: true,
+                            ..default()
+                        },
+                        TurretMarker,
+                        SceneRoot(scene_assets.player_turret.clone()),
+                    ));
+                })
+                .with_children(|parent| {
+                    parent.spawn((
+                        Transform::from_xyz(-0.085, 0., 0.16)
+                            .with_scale(Vec3::new(0.001, 0.001, 0.001)),
+                        Turret(TurretBundle {
+                            shooting: false,
+                            speed: 10.,
+                            bullet_size: 0.0001,
+                            ..default()
+                        }),
+                        TurretMarker,
+                        SceneRoot(scene_assets.player_turret.clone()),
+                    ));
+                })
                 .id(),
         );
     } else {

@@ -30,7 +30,7 @@ fn setup_mesh(
     let mesh_handle = meshes.add(create_mesh(length, l_pieces, w_pieces, axes, origin));
     commands.spawn((
         Mesh3d(mesh_handle),
-        MeshMaterial3d(materials.add(Color::srgb(0.3, 0.5, 0.3))),
+        MeshMaterial3d(materials.add(Color::srgb(0.255, 0.0, 0.0))),
         CustomMesh,
     ));
 }
@@ -61,16 +61,17 @@ fn create_mesh(
             triads.push(j + (l_pieces * (i - 1)));
             triads.push(i * l_pieces + j - 1);
 
-            // triads.push(i * l_pieces + j + 1);
-            // triads.push(j + (l_pieces * (i - 1)));
-            // triads.push(i * l_pieces + j - 1);
+            triads.push(i * l_pieces + j + 1);
+            triads.push(j + (l_pieces * (i - 1)));
+            triads.push(i * l_pieces + j - 1);
         }
     }
 
     let mut normals = vec![];
     for _ in 0..w_pieces {
         for _ in 0..l_pieces {
-            normals.push(Vec3::X);
+            normals.push(Vec3::Z);
+            normals.push(Vec3::Z);
         }
     }
     Mesh::new(

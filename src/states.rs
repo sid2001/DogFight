@@ -2,6 +2,8 @@ use bevy::prelude::*;
 trait MenuItem {}
 trait InGameState {}
 
+impl InGameState for InGameStates {}
+
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
 pub enum MenuItems {
     #[default]
@@ -15,6 +17,23 @@ pub enum InGameStates {
     Paused,
     #[default]
     Play,
+}
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, States)]
+pub enum SpaceShipActionState {
+    Shooting(Action),
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, States)]
+pub enum Action {
+    True,
+    // #[default]
+    False,
+}
+
+impl Default for SpaceShipActionState {
+    fn default() -> Self {
+        Self::Shooting(Action::False)
+    }
 }
 
 // pub enum GameState<T, U>

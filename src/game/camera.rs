@@ -34,15 +34,27 @@ pub fn setup_camera(mut commands: Commands, mut entities: ResMut<Entities>) {
     ));
     entities.camera = Some(
         commands
-            .spawn(MyCameraBundle {
-                camera: Camera3d { ..default() },
-                projection: Projection::Perspective(PerspectiveProjection {
-                    fov: 70.0_f32.to_radians(),
-                    ..Default::default()
-                }),
-                transform: Transform::from_xyz(0.0, -10.0, 0.0).looking_at(Vec3::Y, Vec3::Z),
-                marker: MyCameraMarker,
-            })
+            .spawn((
+                MyCameraBundle {
+                    camera: Camera3d { ..default() },
+                    projection: Projection::Perspective(PerspectiveProjection {
+                        fov: 70.0_f32.to_radians(),
+                        ..Default::default()
+                    }),
+                    transform: Transform::from_xyz(0.0, -10.0, 0.0).looking_at(Vec3::Y, Vec3::Z),
+                    marker: MyCameraMarker,
+                },
+                DistanceFog {
+                    color: Color::srgba(0.35, 0.48, 0.66, 1.0),
+                    directional_light_color: Color::srgba(1.0, 0.95, 0.85, 0.5),
+                    directional_light_exponent: 30.0,
+                    falloff: FogFalloff::from_visibility_colors(
+                        15.0, // distance in world units up to which objects retain visibility (>= 5% contrast)
+                        Color::srgb(0.35, 0.5, 0.66), // atmospheric extinction color (after light is lost due to absorption by atmospheric particles)
+                        Color::srgb(0.8, 0.844, 1.0), // atmospheric inscattering color (light gained due to scattering from the sun)
+                    ),
+                },
+            ))
             .id(),
     );
 }
@@ -72,8 +84,8 @@ fn follow_spaceship(
     let cam = camera.translation.clone();
     camera.translation += (v - sp_dir.0.normalize().clone() - cam)
         * time.delta_secs()
-        * iner.velocity.0.length()
-        * 2.;
+        * (iner.velocity.0.length() * 2. + 2.);
+    camera.translation += sp_dir.1.clone().cross(sp_dir.0.clone()).normalize() * 0.005;
 
     let rotation = Quat::from_rotation_arc(camera.forward().normalize_or_zero(), sp_dir.0);
 
