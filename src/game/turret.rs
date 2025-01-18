@@ -77,7 +77,7 @@ impl Plugin for TurretPlugin {
         app.init_resource::<TurretBullet>()
             .insert_resource(BulletScenePath(self.bullet_scene_path.clone()))
             .add_systems(Startup, load_bullet)
-            .add_systems(Update, shoot_turret)
+            // .add_systems(Update, shoot_turret)
             .add_systems(Update, bullet_travel);
     }
 }
@@ -108,9 +108,9 @@ fn load_bullet(
     };
 }
 
-fn shoot_turret(
+pub fn shoot_turret<T: Component>(
     mut commands: Commands,
-    query: Query<(&Turret, &Transform, &GlobalTransform), With<TurretMarker>>,
+    query: Query<(&Turret, &Transform, &GlobalTransform), (With<TurretMarker>, With<T>)>,
     bullet: Res<TurretBullet>,
 ) {
     for (tur, trans, gt) in query.iter() {

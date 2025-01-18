@@ -1,10 +1,22 @@
-use bevy::prelude::*;
+use bevy::{math::VectorSpace, prelude::*};
 
+use crate::asset_loader::SceneAssets;
+
+// marks bot entities
 #[derive(Component)]
 pub struct BotMarker;
 
+// marks target entities
 #[derive(Component)]
-pub struct BotTargetMarker;
+pub struct TargetMarker;
+
+// marks projectile from target entities
+#[derive(Component)]
+pub struct TargetProjectileMarker;
+
+// marks projectile from bot entities
+#[derive(Component)]
+pub struct BotProjectileMarker;
 
 #[derive(Component)]
 pub enum BotState {
@@ -15,9 +27,180 @@ pub enum BotState {
     Evading,
 }
 
-#[derive]
+#[derive(Component)]
+pub struct BotMotion {
+    pub acceleration: f32,
+    pub drag: Vec3,
+    pub angular_steer: f32,
+    pub velocity: Vec3,
+    pub direction: Vec3,
+}
+
+impl Default for BotMotion {
+    fn default() -> Self {
+        Self {
+            acceleration: 2.,
+            drag: Vec3::ZERO,
+            angular_steer: 60.,
+            velocity: Vec3::ZERO,
+            direction: Vec3::Z,
+        }
+    }
+}
+
+#[derive(Component)]
+pub struct Bot {
+    pub health: f32,
+    pub level: u32,
+}
+
+#[derive(Resource)]
+pub struct BotCount(u32);
+
+//*implement later */
+// #[derive(Resource)]
+// pub struct BotAssets {
+//     pub spaceship: Handle<Scene>,
+//     pub turret: Handle<Scene>,
+// }
+
+// #[derive(Bundle)]
+// pub struct BotBundle {
+// }
 
 pub struct BotPlugin;
 impl Plugin for BotPlugin {
-    fn build(&self, app: &mut App) {}
+    fn build(&self, app: &mut App) {
+        app.insert_resource(BotCount(0))
+            .add_systems(Startup, spawn_bot)
+            .add_systems(Update, (aim_target, chase_target).chain());
+    }
+}
+
+fn chase_target(
+    target_query: Query<&Transform, With<TargetMarker>>,
+    mut bot_query: Query<
+        (&mut Transform, &mut BotState, &mut BotMotion),
+        (With<BotMarker>, Without<TargetMarker>),
+    >,
+    time: Res<Time>,
+) {
+    let t_trans = target_query.get_single().unwrap();
+
+    for (mut trans, mut state, mut motion) in bot_query.iter_mut() {
+        // let target_distance = (t_trans.translation.clone() - trans.translation.clone()).length();
+        let t = time.delta_secs();
+        match *state {
+            BotState::Chasing => {
+                let drag = motion.drag;
+                let mut velocity =
+                    motion.direction.clone().normalize_or_zero() * motion.acceleration * t
+                        + motion.velocity.clone();
+                let Vec3 {
+                    mut x,
+                    mut y,
+                    mut z,
+                } = velocity;
+
+                x = add_drag(x, drag.x, t);
+                y = add_drag(y, drag.y, t);
+                z = add_drag(z, drag.z, t);
+
+                velocity = Vec3 { x, y, z };
+                motion.velocity = velocity;
+                trans.translation += motion.velocity.clone() * t;
+                motion.drag = (motion.velocity.clone() * 2.).abs();
+                info!("Velocityy bot {}", motion.velocity.length());
+            }
+            _ => (),
+        }
+    }
+}
+
+fn aim_target(
+    target_query: Query<&Transform, With<TargetMarker>>,
+    mut bot_query: Query<
+        (&mut Transform, &mut BotMotion, &BotState),
+        (With<BotMarker>, Without<TargetMarker>),
+    >,
+    time: Res<Time>,
+) {
+    let t_trans = target_query.single();
+    for (mut trans, mut motion, state) in bot_query.iter_mut() {
+        match *state {
+            BotState::Chasing => {
+                let t_vec = t_trans.translation.clone() - trans.translation.clone();
+                let rot_aixs = motion
+                    .direction
+                    .clone()
+                    .normalize_or(Vec3::Y)
+                    .cross(t_vec.normalize());
+                let rotation = Quat::from_axis_angle(
+                    rot_aixs.normalize_or(Vec3::Y),
+                    motion.angular_steer.to_radians() * time.delta_secs(),
+                );
+                trans.rotate(rotation);
+                motion.direction = trans.forward().normalize();
+            }
+            _ => (),
+        }
+    }
+}
+
+fn spawn_bot(mut commands: Commands, scene_asset: Res<SceneAssets>) {
+    let bot_spaceship = scene_asset.bot_spaceship.clone();
+
+    commands.spawn((
+        SceneRoot(bot_spaceship.clone()),
+        BotMotion { ..default() },
+        Bot {
+            health: 100.,
+            level: 1,
+        },
+        BotState::Chasing,
+        BotMarker,
+        Transform::from_xyz(0., 20., 20.).with_scale(Vec3::new(0.5, 0.5, 0.5)), // .looking_at(Vec3::Y, Vec3::Z), // .with_rotation(Quat::from_rotation_y(std::f32::consts::PI)),
+    ));
+    commands.spawn((
+        SceneRoot(bot_spaceship.clone()),
+        BotMotion { ..default() },
+        Bot {
+            health: 100.,
+            level: 1,
+        },
+        BotState::Chasing,
+        BotMarker,
+        Transform::from_xyz(20., 30., 40.).with_scale(Vec3::new(0.5, 0.5, 0.5)), // .looking_at(Vec3::Y, Vec3::Z), // .with_rotation(Quat::from_rotation_y(std::f32::consts::PI)),
+    ));
+    commands.spawn((
+        SceneRoot(bot_spaceship.clone()),
+        BotMotion { ..default() },
+        Bot {
+            health: 100.,
+            level: 1,
+        },
+        BotState::Chasing,
+        BotMarker,
+        Transform::from_xyz(0., 0., 0.).with_scale(Vec3::new(0.5, 0.5, 0.5)), // .looking_at(Vec3::Y, Vec3::Z), // .with_rotation(Quat::from_rotation_y(std::f32::consts::PI)),
+    ));
+    commands.spawn((
+        SceneRoot(bot_spaceship.clone()),
+        BotMotion { ..default() },
+        Bot {
+            health: 100.,
+            level: 1,
+        },
+        BotState::Chasing,
+        BotMarker,
+        Transform::from_xyz(30., 70., 0.).with_scale(Vec3::new(0.5, 0.5, 0.5)), // .looking_at(Vec3::Y, Vec3::Z), // .with_rotation(Quat::from_rotation_y(std::f32::consts::PI)),
+    ));
+}
+
+fn add_drag(mut v: f32, drag: f32, t: f32) -> f32 {
+    v = if v.abs() <= drag * t {
+        0.
+    } else {
+        (v / v.abs()) * (v.abs() - drag * t)
+    };
+    v
 }

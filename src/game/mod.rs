@@ -1,4 +1,4 @@
-// pub mod bots;
+pub mod bots;
 pub mod camera;
 pub mod environment;
 pub mod mesh;
@@ -9,6 +9,7 @@ pub mod turret;
 
 use crate::events::TurretEventPlugin;
 use bevy::prelude::*;
+use bots::BotPlugin;
 use camera::CameraPlugin;
 use environment::LandscapePlugin;
 use mesh::TestMeshPlugin;
@@ -27,6 +28,7 @@ impl Plugin for GamePlugin {
         .add_plugins(CameraPlugin)
         .add_plugins(SpaceShipPlugin)
         .add_plugins(ObstaclePlugin)
-        .add_plugins(TestMeshPlugin);
+        .add_plugins(TestMeshPlugin)
+        .add_plugins(BotPlugin);
     }
 }

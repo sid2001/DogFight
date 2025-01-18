@@ -1,3 +1,4 @@
+use super::bots::*;
 use super::movement::{Direction, Drag, Inertia, Position};
 use super::turret::*;
 use crate::asset_loader::{AudioAssets, SceneAssets};
@@ -28,6 +29,9 @@ pub struct Entities {
 
 #[derive(Component)]
 pub struct SpaceShip;
+
+#[derive(Component)]
+pub struct SpaceShipTurret;
 
 #[derive(Component)]
 pub struct Health(f32);
@@ -69,6 +73,11 @@ impl Plugin for SpaceShipPlugin {
                 .in_set(UpdateSet::InGame(InGameSet::SpaceShip))
                 .run_if(in_state(GameState::InGame(InGameStates::Play))),
             // .after(SetupSet::InGame(InGameSet::SpaceShip))
+        )
+        .add_systems(
+            Update,
+            shoot_turret::<SpaceShipTurret>
+                .after(InputSet::InGame(Controls::InGame(InGameSet::SpaceShip))),
         );
     }
 }
@@ -274,30 +283,36 @@ pub fn spawn_spaceship(
         ));
         entities.player = Some(
             commands
-                .spawn((SpaceShipBundle {
-                    health: Health(DEFAULT_HEALTH),
-                    marker: SpaceShip,
-                    position: Position(DEFAULT_SPAWN.clone()),
-                    drag: Drag(DEFAULT_DRAG.clone()),
-                    inertia: Inertia {
-                        thrust: 0.,
-                        ..default()
+                .spawn((
+                    SpaceShipBundle {
+                        health: Health(DEFAULT_HEALTH),
+                        marker: SpaceShip,
+                        position: Position(DEFAULT_SPAWN.clone()),
+                        drag: Drag(DEFAULT_DRAG.clone()),
+                        inertia: Inertia {
+                            thrust: 0.,
+                            ..default()
+                        },
+                        direction: Direction(
+                            DEFAULT_DIRECTION.0.clone(),
+                            DEFAULT_DIRECTION.1.clone(),
+                        ),
+                        model: SceneRoot(spaceship_scene),
+                        transform: Transform::from_translation(Vec3::new(0., 10., 0.))
+                            // .with_rotation(Quat::from_rotation_y(std::f32::consts::PI))
+                            .with_translation(Vec3::new(0.0, 0., 0.0))
+                            .with_scale(Vec3::new(0.5, 0.5, 0.5))
+                            .looking_at(Vec3::Y, Vec3::Z),
+                        throttle_audio: AudioPlayer(audio_assets.throttle_up.clone()),
+                        playback_settings: PlaybackSettings {
+                            mode: Loop,
+                            paused: true,
+                            volume: Volume::new(0.0),
+                            ..default()
+                        },
                     },
-                    direction: Direction(DEFAULT_DIRECTION.0.clone(), DEFAULT_DIRECTION.1.clone()),
-                    model: SceneRoot(spaceship_scene),
-                    transform: Transform::from_translation(Vec3::new(0., 10., 0.))
-                        // .with_rotation(Quat::from_rotation_y(std::f32::consts::PI))
-                        .with_translation(Vec3::new(0.0, 0., 0.0))
-                        .with_scale(Vec3::new(0.5, 0.5, 0.5))
-                        .looking_at(Vec3::Y, Vec3::Z),
-                    throttle_audio: AudioPlayer(audio_assets.throttle_up.clone()),
-                    playback_settings: PlaybackSettings {
-                        mode: Loop,
-                        paused: true,
-                        volume: Volume::new(0.0),
-                        ..default()
-                    },
-                },))
+                    TargetMarker,
+                ))
                 .with_children(|parent| {
                     parent.spawn((
                         Transform::from_xyz(0.085, 0., 0.16)
@@ -315,6 +330,7 @@ pub fn spawn_spaceship(
                             ..default()
                         },
                         TurretMarker,
+                        SpaceShipTurret,
                         SceneRoot(scene_assets.player_turret.clone()),
                     ));
                 })
@@ -329,6 +345,7 @@ pub fn spawn_spaceship(
                             ..default()
                         }),
                         TurretMarker,
+                        SpaceShipTurret,
                         SceneRoot(scene_assets.player_turret.clone()),
                     ));
                 })
