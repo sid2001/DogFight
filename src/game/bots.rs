@@ -1,5 +1,8 @@
 use bevy::{math::VectorSpace, prelude::*};
 
+use super::turret::*;
+use crate::asset_loader::*;
+
 use crate::asset_loader::SceneAssets;
 
 // marks bot entities
@@ -49,6 +52,9 @@ impl Default for BotMotion {
 }
 
 #[derive(Component)]
+pub struct BotTurret;
+
+#[derive(Component)]
 pub struct Bot {
     pub health: f32,
     pub level: u32,
@@ -73,7 +79,8 @@ impl Plugin for BotPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(BotCount(0))
             .add_systems(Startup, spawn_bot)
-            .add_systems(Update, (aim_target, chase_target).chain());
+            .add_systems(Update, (aim_target, chase_target).chain())
+            .add_systems(Update, shoot_turret::<BotTurret>);
     }
 }
 
@@ -147,65 +154,141 @@ fn aim_target(
     }
 }
 
-fn spawn_bot(mut commands: Commands, scene_asset: Res<SceneAssets>) {
+fn spawn_bot(
+    mut commands: Commands,
+    scene_asset: Res<SceneAssets>,
+    audio_assets: Res<AudioAssets>,
+) {
     let bot_spaceship = scene_asset.bot_spaceship.clone();
 
-    commands.spawn((
-        SceneRoot(bot_spaceship.clone()),
-        BotMotion { ..default() },
-        Bot {
-            health: 100.,
-            level: 1,
-        },
-        BotState::Chasing,
-        BotMarker,
-        Transform::from_xyz(0., 20., 20.).with_scale(Vec3::new(0.5, 0.5, 0.5)), // .looking_at(Vec3::Y, Vec3::Z), // .with_rotation(Quat::from_rotation_y(std::f32::consts::PI)),
-    ));
-    commands.spawn((
-        SceneRoot(bot_spaceship.clone()),
-        BotMotion {
-            acceleration: 6.,
-            angular_steer: 80.,
-            ..default()
-        },
-        Bot {
-            health: 100.,
-            level: 1,
-        },
-        BotState::Chasing,
-        BotMarker,
-        Transform::from_xyz(20., 30., 40.).with_scale(Vec3::new(0.5, 0.5, 0.5)), // .looking_at(Vec3::Y, Vec3::Z), // .with_rotation(Quat::from_rotation_y(std::f32::consts::PI)),
-    ));
-    commands.spawn((
-        SceneRoot(scene_asset.bot_spaceship3.clone()),
-        BotMotion {
-            acceleration: 4.,
-            angular_steer: 40.,
-            ..default()
-        },
-        Bot {
-            health: 100.,
-            level: 3,
-        },
-        BotState::Chasing,
-        BotMarker,
-        Transform::from_xyz(0., 0., 0.).with_scale(Vec3::new(0.5, 0.5, 0.5)), // .looking_at(Vec3::Y, Vec3::Z), // .with_rotation(Quat::from_rotation_y(std::f32::consts::PI)),
-    ));
-    commands.spawn((
-        SceneRoot(scene_asset.bot_spaceship2.clone()),
-        BotMotion {
-            acceleration: 10.,
-            angular_steer: 90.,
-            ..default()
-        },
-        Bot {
-            health: 100.,
-            level: 2,
-        },
-        BotState::Chasing,
-        BotMarker,
-        Transform::from_xyz(30., 70., 0.).with_scale(Vec3::new(0.5, 0.5, 0.5)), // .looking_at(Vec3::Y, Vec3::Z), // .with_rotation(Quat::from_rotation_y(std::f32::consts::PI)),
-    ));
+    commands
+        .spawn((
+            SceneRoot(bot_spaceship.clone()),
+            BotMotion { ..default() },
+            Bot {
+                health: 100.,
+                level: 1,
+            },
+            BotState::Chasing,
+            BotMarker,
+            AudioPlayer(audio_assets.throttle_up.clone()),
+            PlaybackSettings::LOOP.with_spatial(true),
+            Transform::from_xyz(0., 20., 20.).with_scale(Vec3::new(0.5, 0.5, 0.5)), // .looking_at(Vec3::Y, Vec3::Z), // .with_rotation(Quat::from_rotation_y(std::f32::consts::PI)),
+        ))
+        .with_children(|parent| {
+            parent.spawn((
+                Transform::from_xyz(0., 0., 0.),
+                Turret(TurretBundle {
+                    shooting: true,
+                    speed: 20.,
+                    bullet_size: 0.0002,
+                    ..default()
+                }),
+                AudioPlayer(audio_assets.laser_turret.clone()),
+                PlaybackSettings::LOOP.with_spatial(true),
+                BotTurret,
+                TurretMarker,
+            ));
+        });
+    commands
+        .spawn((
+            SceneRoot(bot_spaceship.clone()),
+            BotMotion {
+                acceleration: 6.,
+                angular_steer: 80.,
+                ..default()
+            },
+            Bot {
+                health: 100.,
+                level: 1,
+            },
+            AudioPlayer(audio_assets.throttle_up.clone()),
+            PlaybackSettings::LOOP.with_spatial(true),
+            BotState::Chasing,
+            BotMarker,
+            Transform::from_xyz(20., 30., 40.).with_scale(Vec3::new(0.5, 0.5, 0.5)), // .looking_at(Vec3::Y, Vec3::Z), // .with_rotation(Quat::from_rotation_y(std::f32::consts::PI)),
+        ))
+        .with_children(|parent| {
+            parent.spawn((
+                Transform::from_xyz(0., 0., 0.),
+                Turret(TurretBundle {
+                    shooting: true,
+                    speed: 20.,
+                    bullet_size: 0.0002,
+                    ..default()
+                }),
+                AudioPlayer(audio_assets.laser_turret.clone()),
+                PlaybackSettings::LOOP.with_spatial(true),
+                BotTurret,
+                TurretMarker,
+            ));
+        });
+    commands
+        .spawn((
+            SceneRoot(scene_asset.bot_spaceship3.clone()),
+            BotMotion {
+                acceleration: 4.,
+                angular_steer: 40.,
+                ..default()
+            },
+            Bot {
+                health: 100.,
+                level: 3,
+            },
+            AudioPlayer(audio_assets.throttle_up.clone()),
+            PlaybackSettings::LOOP.with_spatial(true),
+            BotState::Chasing,
+            BotMarker,
+            Transform::from_xyz(0., 0., 0.).with_scale(Vec3::new(0.5, 0.5, 0.5)), // .looking_at(Vec3::Y, Vec3::Z), // .with_rotation(Quat::from_rotation_y(std::f32::consts::PI)),
+        ))
+        .with_children(|parent| {
+            parent.spawn((
+                Transform::from_xyz(0., 0., 0.),
+                Turret(TurretBundle {
+                    shooting: true,
+                    speed: 20.,
+                    bullet_size: 0.0002,
+                    ..default()
+                }),
+                AudioPlayer(audio_assets.laser_turret.clone()),
+                PlaybackSettings::LOOP.with_spatial(true),
+                BotTurret,
+                TurretMarker,
+            ));
+        });
+    commands
+        .spawn((
+            SceneRoot(scene_asset.bot_spaceship2.clone()),
+            BotMotion {
+                acceleration: 10.,
+                angular_steer: 90.,
+                ..default()
+            },
+            Bot {
+                health: 100.,
+                level: 2,
+            },
+            AudioPlayer(audio_assets.throttle_up.clone()),
+            PlaybackSettings::LOOP.with_spatial(true),
+            BotState::Chasing,
+            BotMarker,
+            Transform::from_xyz(30., 70., 0.).with_scale(Vec3::new(0.5, 0.5, 0.5)), // .looking_at(Vec3::Y, Vec3::Z), // .with_rotation(Quat::from_rotation_y(std::f32::consts::PI)),
+        ))
+        .with_children(|parent| {
+            parent.spawn((
+                Transform::from_xyz(0., 0., 0.),
+                Turret(TurretBundle {
+                    shooting: true,
+                    speed: 20.,
+                    bullet_size: 0.0002,
+                    ..default()
+                }),
+                AudioPlayer(audio_assets.laser_turret.clone()),
+                PlaybackSettings::LOOP.with_spatial(true),
+                BotTurret,
+                TurretMarker,
+            ));
+        });
 }
 
 fn add_drag(mut v: f32, drag: f32, t: f32) -> f32 {

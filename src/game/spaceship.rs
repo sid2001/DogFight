@@ -84,7 +84,7 @@ impl Plugin for SpaceShipPlugin {
 
 fn spaceship_controls(
     mut spaceship_query: Query<(&mut Inertia, &mut Direction), With<SpaceShip>>,
-    mut turret_query: Query<(Entity, &mut Turret), (With<TurretMarker>, Without<SpaceShip>)>,
+    mut turret_query: Query<(Entity, &mut Turret), (With<SpaceShipTurret>, Without<SpaceShip>)>,
     mut ev_throttle_up: EventWriter<ThrottleUpEvent>,
     mut ev_throttle_down: EventWriter<ThrottleDownEvent>,
     mut ev_turret_off: EventWriter<ShootTurretEventOff>,
@@ -279,6 +279,7 @@ pub fn spawn_spaceship(
                 ..default()
             },
         ));
+        let listener = SpatialListener::new(1.);
         entities.player = Some(
             commands
                 .spawn((
@@ -310,6 +311,7 @@ pub fn spawn_spaceship(
                         },
                     },
                     TargetMarker,
+                    listener.clone(),
                 ))
                 .with_children(|parent| {
                     parent.spawn((
@@ -331,8 +333,7 @@ pub fn spawn_spaceship(
                         SpaceShipTurret,
                         SceneRoot(scene_assets.player_turret.clone()),
                     ));
-                })
-                .with_children(|parent| {
+
                     parent.spawn((
                         Transform::from_xyz(-0.085, 0., 0.16)
                             .with_scale(Vec3::new(0.001, 0.001, 0.001)),
@@ -346,6 +347,10 @@ pub fn spawn_spaceship(
                         SpaceShipTurret,
                         SceneRoot(scene_assets.player_turret.clone()),
                     ));
+                })
+                .with_children(|parent| {
+                    parent.spawn((Transform::from_translation(listener.left_ear_offset),));
+                    parent.spawn((Transform::from_translation(listener.right_ear_offset),));
                 })
                 .id(),
         );

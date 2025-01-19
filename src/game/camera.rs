@@ -1,6 +1,5 @@
 use super::movement::{Direction, Inertia};
 use super::spaceship::{Entities, SpaceShip};
-use bevy::render::view::visibility;
 use bevy::{pbr::*, prelude::*};
 
 const DEFAULT_ANGULAR_SPEED: f32 = 100.;
