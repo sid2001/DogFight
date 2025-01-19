@@ -39,7 +39,7 @@ pub struct BotMotion {
 impl Default for BotMotion {
     fn default() -> Self {
         Self {
-            acceleration: 2.,
+            acceleration: 5.,
             drag: Vec3::ZERO,
             angular_steer: 60.,
             velocity: Vec3::ZERO,
@@ -163,7 +163,11 @@ fn spawn_bot(mut commands: Commands, scene_asset: Res<SceneAssets>) {
     ));
     commands.spawn((
         SceneRoot(bot_spaceship.clone()),
-        BotMotion { ..default() },
+        BotMotion {
+            acceleration: 6.,
+            angular_steer: 80.,
+            ..default()
+        },
         Bot {
             health: 100.,
             level: 1,
@@ -173,22 +177,30 @@ fn spawn_bot(mut commands: Commands, scene_asset: Res<SceneAssets>) {
         Transform::from_xyz(20., 30., 40.).with_scale(Vec3::new(0.5, 0.5, 0.5)), // .looking_at(Vec3::Y, Vec3::Z), // .with_rotation(Quat::from_rotation_y(std::f32::consts::PI)),
     ));
     commands.spawn((
-        SceneRoot(bot_spaceship.clone()),
-        BotMotion { ..default() },
+        SceneRoot(scene_asset.bot_spaceship3.clone()),
+        BotMotion {
+            acceleration: 4.,
+            angular_steer: 40.,
+            ..default()
+        },
         Bot {
             health: 100.,
-            level: 1,
+            level: 3,
         },
         BotState::Chasing,
         BotMarker,
         Transform::from_xyz(0., 0., 0.).with_scale(Vec3::new(0.5, 0.5, 0.5)), // .looking_at(Vec3::Y, Vec3::Z), // .with_rotation(Quat::from_rotation_y(std::f32::consts::PI)),
     ));
     commands.spawn((
-        SceneRoot(bot_spaceship.clone()),
-        BotMotion { ..default() },
+        SceneRoot(scene_asset.bot_spaceship2.clone()),
+        BotMotion {
+            acceleration: 10.,
+            angular_steer: 90.,
+            ..default()
+        },
         Bot {
             health: 100.,
-            level: 1,
+            level: 2,
         },
         BotState::Chasing,
         BotMarker,

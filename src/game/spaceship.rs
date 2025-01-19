@@ -12,7 +12,7 @@ const DEFAULT_HEALTH: f32 = 100.0;
 const DEFAULT_THRUST: Vec3 = Vec3::new(0.5, 0.5, 0.5);
 const DEFAULT_SPAWN: Vec3 = Vec3::ZERO;
 const DEFAULT_ANGULAR_CHANGE: f32 = 50.0;
-const DEFAULT_STEERING_BOOST: f32 = 0.;
+const DEFAULT_STEERING_BOOST: f32 = 30.;
 const DEFAULT_ROLL_BOOST: f32 = 60.;
 const DEFAULT_THRUST_LIMIT: f32 = 18.0;
 const DEFAULT_ROLL_ANGULAR_CHANGE: f32 = 100.0;
@@ -110,15 +110,13 @@ fn spaceship_controls(
             inertia.thrust -= 2.0;
             ev_throttle_down.send(ThrottleDownEvent(entity.player.unwrap()));
         }
-        // if inertia.thrust == 0. {
-        // }
     }
 
     {
         let mut ang = DEFAULT_ANGULAR_CHANGE;
         let mut ang_roll = DEFAULT_ROLL_ANGULAR_CHANGE;
         if keys.pressed(KeyCode::ShiftLeft) {
-            // ang += DEFAULT_STEERING_BOOST;
+            ang += DEFAULT_STEERING_BOOST;
             ang_roll += DEFAULT_ROLL_BOOST;
         }
         if keys.pressed(KeyCode::KeyS) {

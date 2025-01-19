@@ -1,5 +1,6 @@
 use super::movement::{Direction, Inertia};
 use super::spaceship::{Entities, SpaceShip};
+use bevy::render::view::visibility;
 use bevy::{pbr::*, prelude::*};
 
 const DEFAULT_ANGULAR_SPEED: f32 = 100.;
@@ -7,9 +8,22 @@ const DEFAULT_ANGULAR_SPEED: f32 = 100.;
 #[derive(Component)]
 pub struct MyCameraMarker;
 
+pub enum ViewMode {
+    FirstPerson((f32, f32)),
+    ThirdPerson1((f32, f32)),
+    ThirdPerson2((f32, f32)),
+}
+
+impl Default for ViewMode {
+    fn default() -> Self {
+        ViewMode::ThirdPerson1((0.5, 1.))
+    }
+}
+
 #[derive(Component, Default)]
 pub struct CameraMode {
     pub freelook: bool,
+    pub view_mode: ViewMode,
 }
 
 #[derive(Bundle)]
@@ -26,7 +40,7 @@ pub struct CameraPlugin;
 impl Plugin for CameraPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, setup_camera)
-            .add_systems(Update, (follow_spaceship, free_look));
+            .add_systems(Update, (follow_spaceship, camera_view));
     }
 }
 
@@ -51,7 +65,10 @@ pub fn setup_camera(mut commands: Commands, mut entities: ResMut<Entities>) {
                     }),
                     transform: Transform::from_xyz(0.0, -10.0, 0.0).looking_at(Vec3::Y, Vec3::Z),
                     marker: MyCameraMarker,
-                    mode: CameraMode { freelook: false },
+                    mode: CameraMode {
+                        freelook: false,
+                        ..default()
+                    },
                 },
                 // DistanceFog {
                 //     color: Color::srgba(0.35, 0.48, 0.66, 1.0),
@@ -70,7 +87,7 @@ pub fn setup_camera(mut commands: Commands, mut entities: ResMut<Entities>) {
 
 fn follow_spaceship(
     mut cam_query: Query<(&mut Transform, &CameraMode), With<MyCameraMarker>>,
-    sp_query: Query<
+    mut sp_query: Query<
         (&Transform, &mut Direction, &Inertia),
         (With<SpaceShip>, Without<MyCameraMarker>),
     >,
@@ -78,7 +95,7 @@ fn follow_spaceship(
     time: Res<Time>,
 ) {
     let (trans, sp_dir, iner) = sp_query
-        .get(entity.player.unwrap())
+        .get_mut(entity.player.unwrap())
         .expect("Error while player!");
     let v = trans.translation.clone();
 
@@ -86,15 +103,29 @@ fn follow_spaceship(
         .get_mut(entity.camera.unwrap())
         .expect("Can't get entitiy camera");
 
+    let (d, s) = match camera_mode.view_mode {
+        ViewMode::FirstPerson((x, y)) => (x, y),
+        ViewMode::ThirdPerson1((x, y)) => (x, y),
+        ViewMode::ThirdPerson2((x, y)) => (x, y),
+    };
     //* find a way to calcuate a factor so that the camera speed changes with spacecraft velocity
     // let factor = iner.velocity.0.clone()
     //     - Vec3::new(1., 1., 1.) * iner.velocity.0.clone().normalize_or_zero();
 
     let cam = camera.translation.clone();
-    camera.translation += (v - sp_dir.0.normalize().clone() - cam)
-        * time.delta_secs()
-        * (iner.velocity.0.length() * 2. + 2.);
-    camera.translation += sp_dir.1.clone().cross(sp_dir.0.clone()).normalize() * 0.005;
+    camera.translation += (v - sp_dir.0.normalize().clone() * d - cam)
+        * if s == 0. {
+            1.
+        } else {
+            time.delta_secs() * (iner.velocity.0.length() * 2. + 2.)
+        };
+
+    camera.translation += if s == 0. {
+        sp_dir.0.clone().normalize() * 0.2
+            + sp_dir.1.clone().cross(sp_dir.0.clone()).normalize() * 0.1
+    } else {
+        sp_dir.1.clone().cross(sp_dir.0.clone()).normalize() * 0.005
+    };
 
     let rotation = Quat::from_rotation_arc(camera.forward().normalize_or_zero(), sp_dir.0);
     // let rot_axis = trans
@@ -119,16 +150,38 @@ fn follow_spaceship(
     if !camera_mode.freelook {
         camera.rotate(rotation);
     }
+    if s == 0. {
+        let rot = Quat::from_rotation_arc(
+            camera.right().clone().as_vec3().normalize(),
+            sp_dir.1.clone().normalize(),
+        );
+        camera.rotate(rot);
+    }
 }
 
-fn free_look(
+fn camera_view(
     mut query: Query<(&mut Transform, &mut CameraMode), (With<MyCameraMarker>, Without<SpaceShip>)>,
-    sp_query: Query<&Transform, With<SpaceShip>>,
+    mut sp_query: Query<(&Transform, &mut Visibility), With<SpaceShip>>,
     keys: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
 ) {
     for (mut trans, mut camera_mode) in query.iter_mut() {
-        let sp_trans = sp_query.single();
+        let (sp_trans, mut sp_visibility) = sp_query.single_mut();
+
+        if keys.just_pressed(KeyCode::KeyV) {
+            camera_mode.view_mode = match camera_mode.view_mode {
+                ViewMode::FirstPerson(_) => {
+                    *sp_visibility = Visibility::Inherited;
+                    ViewMode::ThirdPerson1((0.5, 1.))
+                }
+                ViewMode::ThirdPerson1(_) => ViewMode::ThirdPerson2((1., 1.)),
+                ViewMode::ThirdPerson2(_) => {
+                    *sp_visibility = Visibility::Hidden;
+                    ViewMode::FirstPerson((0.2, 0.))
+                }
+            }
+        }
+
         if keys.just_released(KeyCode::ControlLeft) {
             camera_mode.freelook = false;
         }
