@@ -80,7 +80,7 @@ fn state_event_control(
     mut next_state: ResMut<NextState<GameState>>,
     keys: Res<ButtonInput<KeyCode>>,
 ) {
-    error!("Press");
+    // error!("Press");
     match keys.just_pressed(KeyCode::Tab) {
         true => match curr_state.get() {
             GameState::InGame(InGameStates::Paused) => {

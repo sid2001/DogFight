@@ -25,6 +25,7 @@ const DEFAULT_SPEED_LIMIT: f32 = 1.5;
 pub struct Entities {
     pub player: Option<Entity>,
     pub camera: Option<Entity>,
+    pub turret: Option<Entity>,
 }
 
 #[derive(Component)]
@@ -71,19 +72,19 @@ impl Plugin for SpaceShipPlugin {
             )
                 .chain()
                 .in_set(UpdateSet::InGame(InGameSet::SpaceShip))
-                .run_if(in_state(GameState::InGame(InGameStates::Play))),
-            // .after(SetupSet::InGame(InGameSet::SpaceShip))
+                .run_if(in_state(GameState::InGame(InGameStates::Play))), // .after(SetupSet::InGame(InGameSet::SpaceShip)),
         )
         .add_systems(
             Update,
             shoot_turret::<SpaceShipTurret>
-                .after(InputSet::InGame(Controls::InGame(InGameSet::SpaceShip))),
+                // .after(InputSet::InGame(Controls::InGame(InGameSet::SpaceShip)))
+                .after(UpdateSet::InGame(InGameSet::SpaceShip)),
         );
     }
 }
 
 fn spaceship_controls(
-    mut spaceship_query: Query<(&mut Inertia, &mut Direction), With<SpaceShip>>,
+    mut spaceship_query: Query<(Entity, &mut Inertia, &mut Direction), With<SpaceShip>>,
     mut turret_query: Query<(Entity, &mut Turret), (With<SpaceShipTurret>, Without<SpaceShip>)>,
     mut ev_throttle_up: EventWriter<ThrottleUpEvent>,
     mut ev_throttle_down: EventWriter<ThrottleDownEvent>,
@@ -93,7 +94,7 @@ fn spaceship_controls(
     time: Res<Time>,
     entity: Res<Entities>,
 ) {
-    let (ref mut inertia, ref mut dir) = spaceship_query
+    let (sp_ent, ref mut inertia, ref mut dir) = spaceship_query
         .get_mut(entity.player.unwrap())
         .expect("Can't get entity!");
 
@@ -102,13 +103,13 @@ fn spaceship_controls(
         // }
         if inertia.thrust != DEFAULT_THRUST_LIMIT {
             inertia.thrust += 2.0;
-            ev_throttle_up.send(ThrottleUpEvent(entity.player.unwrap()));
+            ev_throttle_up.send(ThrottleUpEvent(sp_ent.clone()));
         }
     }
     if keys.just_pressed(KeyCode::KeyK) {
         if inertia.thrust != -DEFAULT_THRUST_LIMIT {
             inertia.thrust -= 2.0;
-            ev_throttle_down.send(ThrottleDownEvent(entity.player.unwrap()));
+            ev_throttle_down.send(ThrottleDownEvent(sp_ent.clone()));
         }
     }
 
@@ -165,7 +166,7 @@ fn spaceship_controls(
 
     if keys.pressed(KeyCode::KeyL) {
         for (ent, mut tur) in turret_query.iter_mut() {
-            error!("relesed");
+            // error!("relesed");
             tur.0.shooting = true;
             tur.0.bullet_inertial_velocity = inertia.velocity.0.clone();
             ev_turret_on.send(ShootTurretEventOn(ent.clone()));
@@ -192,31 +193,12 @@ fn accelerate_spaceship(
     // info!("acc: {:?}", acc);
     // info!("vel: {:?}", inertia.velocity.0);
 
-    let Vec3 {
-        mut x,
-        mut y,
-        mut z,
-    } = inertia.velocity.0.clone() + acc * time.delta_secs();
+    let Vec3 { x, y, z } = inertia.velocity.0.clone() + (acc + drag.0) * time.delta_secs();
 
-    y = if y.abs() <= drag.0.y * time.delta_secs() {
-        0.0
-    } else {
-        (y / y.abs()) * (y.abs() - drag.0.y * time.delta_secs())
-    };
-    x = if x.abs() <= drag.0.x * time.delta_secs() {
-        0.0
-    } else {
-        (x / x.abs()) * (x.abs() - drag.0.x * time.delta_secs())
-    };
-    z = if z.abs() <= drag.0.z * time.delta_secs() {
-        0.0
-    } else {
-        (z / z.abs()) * (z.abs() - drag.0.z * time.delta_secs())
-    };
     inertia.velocity.0 = Vec3 { x, y, z };
 
     //* come up with a better drag function
-    drag.0 = (inertia.velocity.0.clone() * 2.).abs();
+    drag.0 = -inertia.velocity.0.clone() * 2.;
 }
 
 fn move_spaceship(
@@ -229,7 +211,7 @@ fn move_spaceship(
         .expect("Error getting entity player!");
 
     trans.translation += iner.velocity.0 * time.delta_secs();
-    info!("{}", iner.velocity.0.length());
+    // info!("{}", iner.velocity.0.length());
 }
 
 fn spaceship_orientation(
@@ -297,11 +279,11 @@ pub fn spawn_spaceship(
                             DEFAULT_DIRECTION.1.clone(),
                         ),
                         model: SceneRoot(spaceship_scene),
-                        transform: Transform::from_translation(Vec3::new(0., 10., 0.))
+                        transform: Transform::from_translation(Vec3::new(0., -6., 0.))
                             // .with_rotation(Quat::from_rotation_y(std::f32::consts::PI))
-                            .with_translation(Vec3::new(0.0, 0., 0.0))
+                            // .with_translation(Vec3::new(0.0, 5., 0.0))
                             .with_scale(Vec3::new(0.5, 0.5, 0.5))
-                            .looking_at(Vec3::Y, Vec3::Z),
+                            .looking_at(Vec3::ZERO, Vec3::Z),
                         throttle_audio: AudioPlayer(audio_assets.throttle_up.clone()),
                         playback_settings: PlaybackSettings {
                             mode: Loop,
@@ -314,25 +296,29 @@ pub fn spawn_spaceship(
                     listener.clone(),
                 ))
                 .with_children(|parent| {
-                    parent.spawn((
-                        Transform::from_xyz(0.085, 0., 0.16)
-                            .with_scale(Vec3::new(0.001, 0.001, 0.001)),
-                        Turret(TurretBundle {
-                            shooting: false,
-                            speed: 10.,
-                            bullet_size: 0.0002,
-                            ..default()
-                        }),
-                        AudioPlayer(audio_assets.laser_turret.clone()),
-                        PlaybackSettings {
-                            mode: Loop,
-                            paused: true,
-                            ..default()
-                        },
-                        TurretMarker,
-                        SpaceShipTurret,
-                        SceneRoot(scene_assets.player_turret.clone()),
-                    ));
+                    entities.turret = Some(
+                        parent
+                            .spawn((
+                                Transform::from_xyz(0.085, 0., 0.16)
+                                    .with_scale(Vec3::new(0.001, 0.001, 0.001)),
+                                Turret(TurretBundle {
+                                    shooting: false,
+                                    speed: 10.,
+                                    bullet_size: 0.0002,
+                                    ..default()
+                                }),
+                                AudioPlayer(audio_assets.laser_turret.clone()),
+                                PlaybackSettings {
+                                    mode: Loop,
+                                    paused: true,
+                                    ..default()
+                                },
+                                TurretMarker,
+                                SpaceShipTurret,
+                                SceneRoot(scene_assets.player_turret.clone()),
+                            ))
+                            .id(),
+                    );
 
                     parent.spawn((
                         Transform::from_xyz(-0.085, 0., 0.16)

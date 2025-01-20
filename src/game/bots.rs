@@ -28,6 +28,7 @@ pub enum BotState {
     Dead,
     Searching,
     Evading,
+    Dodge(Dir3),
 }
 
 #[derive(Component)]
@@ -37,6 +38,8 @@ pub struct BotMotion {
     pub angular_steer: f32,
     pub velocity: Vec3,
     pub direction: Vec3,
+    pub nearest_obstacle: (f32, Dir3),
+    pub last_dir: Option<Dir3>,
 }
 
 impl Default for BotMotion {
@@ -47,6 +50,8 @@ impl Default for BotMotion {
             angular_steer: 60.,
             velocity: Vec3::ZERO,
             direction: Vec3::Z,
+            nearest_obstacle: (f32::INFINITY, Dir3::Y),
+            last_dir: None,
         }
     }
 }
@@ -92,31 +97,21 @@ fn chase_target(
     >,
     time: Res<Time>,
 ) {
-    let t_trans = target_query.get_single().unwrap();
+    let t_trans = target_query.single();
 
     for (mut trans, mut state, mut motion) in bot_query.iter_mut() {
         // let target_distance = (t_trans.translation.clone() - trans.translation.clone()).length();
         let t = time.delta_secs();
         match *state {
             BotState::Chasing => {
-                let drag = motion.drag;
-                let mut velocity =
-                    motion.direction.clone().normalize_or_zero() * motion.acceleration * t
-                        + motion.velocity.clone();
-                let Vec3 {
-                    mut x,
-                    mut y,
-                    mut z,
-                } = velocity;
-
-                x = add_drag(x, drag.x, t);
-                y = add_drag(y, drag.y, t);
-                z = add_drag(z, drag.z, t);
-
-                velocity = Vec3 { x, y, z };
+                let drag = motion.drag.clone();
+                let velocity =
+                    motion.direction.clone().normalize_or_zero() * motion.acceleration.clone() * t
+                        + motion.velocity.clone()
+                        + drag * t;
                 motion.velocity = velocity;
                 trans.translation += motion.velocity.clone() * t;
-                motion.drag = (motion.velocity.clone() * 2.).abs();
+                motion.drag = -motion.velocity.clone() * 2.;
                 info!("Velocityy bot {}", motion.velocity.length());
             }
             _ => (),
@@ -147,7 +142,7 @@ fn aim_target(
                     motion.angular_steer.to_radians() * time.delta_secs(),
                 );
                 trans.rotate(rotation);
-                motion.direction = trans.forward().normalize();
+                motion.direction = trans.forward().as_vec3().normalize();
             }
             _ => (),
         }
@@ -289,13 +284,4 @@ fn spawn_bot(
                 TurretMarker,
             ));
         });
-}
-
-fn add_drag(mut v: f32, drag: f32, t: f32) -> f32 {
-    v = if v.abs() <= drag * t {
-        0.
-    } else {
-        (v / v.abs()) * (v.abs() - drag * t)
-    };
-    v
 }

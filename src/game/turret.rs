@@ -1,4 +1,4 @@
-use std::ptr::null;
+use std::time::Duration;
 
 use bevy::{math::VectorSpace, prelude::*, state::commands};
 
@@ -58,7 +58,7 @@ pub struct TurretBullet {
     pub handle: Handle<Scene>,
 }
 
-#[derive(Resource)]
+#[derive(Resource, Default)]
 pub struct BulletScenePath(String);
 
 #[derive(Component)]
@@ -69,12 +69,19 @@ pub struct Bullet {
     pub distance_covered: f32,
 }
 
+#[derive(Resource, Default)]
+pub struct FireRateTimer(Timer);
+
 pub struct TurretPlugin {
     pub bullet_scene_path: String,
 }
 impl Plugin for TurretPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<TurretBullet>()
+            .insert_resource(FireRateTimer(Timer::new(
+                Duration::from_secs_f32(0.08),
+                TimerMode::Repeating,
+            )))
             .insert_resource(BulletScenePath(self.bullet_scene_path.clone()))
             .add_systems(Startup, load_bullet)
             // .add_systems(Update, shoot_turret)
@@ -112,23 +119,27 @@ pub fn shoot_turret<T: Component>(
     mut commands: Commands,
     query: Query<(&Turret, &Transform, &GlobalTransform), (With<TurretMarker>, With<T>)>,
     bullet: Res<TurretBullet>,
+    mut timer: ResMut<FireRateTimer>,
+    time: Res<Time>,
 ) {
     for (tur, trans, gt) in query.iter() {
-        match &tur.0.shooting {
+        match tur.0.shooting {
             true => {
-                commands.spawn((
-                    SceneRoot(bullet.handle.clone()),
-                    Transform::from_translation(gt.translation().clone())
-                        .with_scale(Vec3::ONE * tur.0.bullet_size.clone())
-                        .with_rotation(gt.rotation().clone()),
-                    BulletMarker,
-                    Bullet {
-                        speed: tur.0.speed.clone(),
-                        direction: gt.forward(),
-                        velocity: tur.0.bullet_inertial_velocity,
-                        distance_covered: 0.,
-                    },
-                ));
+                if timer.0.tick(time.delta()).just_finished() {
+                    commands.spawn((
+                        SceneRoot(bullet.handle.clone()),
+                        Transform::from_translation(gt.translation().clone())
+                            .with_scale(Vec3::ONE * tur.0.bullet_size.clone())
+                            .with_rotation(gt.rotation().clone()),
+                        BulletMarker,
+                        Bullet {
+                            speed: tur.0.speed.clone(),
+                            direction: gt.forward(),
+                            velocity: tur.0.bullet_inertial_velocity,
+                            distance_covered: 0.,
+                        },
+                    ));
+                };
             }
             _ => (),
         }
@@ -139,9 +150,9 @@ pub fn turret_sound_on(
     mut ev_turret_on: EventReader<ShootTurretEventOn>,
     mut query: Query<&AudioSink, With<TurretMarker>>,
 ) {
-    error!("turret sound1");
+    // error!("turret sound1");
     for entity in ev_turret_on.read() {
-        error!("turret sound");
+        // error!("turret sound");
         if let Ok(bun) = query.get_mut(entity.0) {
             if bun.is_paused() {
                 bun.play();
