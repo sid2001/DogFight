@@ -14,12 +14,12 @@ pub enum UpdateSet {
 
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum InputSet {
-    InGame(Controls),
+    InGame(ControlsSet),
     Menu,
 }
 
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
-pub enum Controls {
+pub enum ControlsSet {
     InGame(InGameSet),
 }
 

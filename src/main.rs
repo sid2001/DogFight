@@ -1,4 +1,5 @@
 mod asset_loader;
+mod controls;
 mod events;
 mod game;
 mod sets;
@@ -7,6 +8,7 @@ mod states;
 use asset_loader::AssetLoaderPlugin;
 use bevy::prelude::*;
 use bevy_panorbit_camera::{PanOrbitCamera, PanOrbitCameraPlugin};
+use controls::ControlPlugin;
 use events::EventPlugin;
 use game::spaceship::Entities;
 use game::GamePlugin;
@@ -42,6 +44,7 @@ fn main() {
         .add_plugins(EventPlugin)
         .add_plugins(StatePlugin)
         .add_plugins(GamePlugin)
+        .add_plugins(ControlPlugin)
         // .add_plugins(PanOrbitCameraPlugin)
         // .add_systems(Startup, setup)
         // Wireframes can be configured with this resource. This can be changed at runtime.

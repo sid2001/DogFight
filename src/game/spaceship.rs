@@ -2,6 +2,7 @@ use super::bots::*;
 use super::movement::{Direction, Drag, Inertia, Position};
 use super::turret::*;
 use crate::asset_loader::{AudioAssets, SceneAssets};
+use crate::controls::Controls;
 use crate::events::{ThrottleDownEvent, ThrottleUpEvent};
 use crate::sets::*;
 use crate::states::*;
@@ -64,7 +65,8 @@ impl Plugin for SpaceShipPlugin {
         .add_systems(
             Update,
             (
-                spaceship_controls.in_set(InputSet::InGame(Controls::InGame(InGameSet::SpaceShip))),
+                spaceship_controls
+                    .in_set(InputSet::InGame(ControlsSet::InGame(InGameSet::SpaceShip))),
                 accelerate_spaceship,
                 move_spaceship,
                 spaceship_orientation,
@@ -90,6 +92,7 @@ fn spaceship_controls(
     mut ev_throttle_down: EventWriter<ThrottleDownEvent>,
     mut ev_turret_off: EventWriter<ShootTurretEventOff>,
     mut ev_turret_on: EventWriter<ShootTurretEventOn>,
+    controls: Res<Controls>,
     keys: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
     entity: Res<Entities>,
@@ -98,7 +101,7 @@ fn spaceship_controls(
         .get_mut(entity.player.unwrap())
         .expect("Can't get entity!");
 
-    if keys.just_pressed(KeyCode::KeyJ) {
+    if keys.just_pressed(controls.thrust.unwrap()) {
         // if inertia.thrust == 0. {
         // }
         if inertia.thrust != DEFAULT_THRUST_LIMIT {
@@ -106,7 +109,7 @@ fn spaceship_controls(
             ev_throttle_up.send(ThrottleUpEvent(sp_ent.clone()));
         }
     }
-    if keys.just_pressed(KeyCode::KeyK) {
+    if keys.just_pressed(controls.back_thrust.unwrap()) {
         if inertia.thrust != -DEFAULT_THRUST_LIMIT {
             inertia.thrust -= 2.0;
             ev_throttle_down.send(ThrottleDownEvent(sp_ent.clone()));
@@ -116,31 +119,31 @@ fn spaceship_controls(
     {
         let mut ang = DEFAULT_ANGULAR_CHANGE;
         let mut ang_roll = DEFAULT_ROLL_ANGULAR_CHANGE;
-        if keys.pressed(KeyCode::ShiftLeft) {
+        if keys.pressed(controls.steer_boost.unwrap()) {
             ang += DEFAULT_STEERING_BOOST;
             ang_roll += DEFAULT_ROLL_BOOST;
         }
-        if keys.pressed(KeyCode::KeyS) {
+        if keys.pressed(controls.down.unwrap()) {
             // let target = dir.0.cross(dir.1);
             let rotation = Quat::from_axis_angle(dir.1, ang.to_radians() * time.delta_secs());
             dir.0 = rotation.mul_vec3(dir.0);
         }
 
-        if keys.pressed(KeyCode::KeyW) {
+        if keys.pressed(controls.up.unwrap()) {
             let rotation = Quat::from_axis_angle(-dir.1, ang.to_radians() * time.delta_secs());
             dir.0 = rotation.mul_vec3(dir.0);
         }
-        if keys.pressed(KeyCode::KeyA) {
+        if keys.pressed(controls.roll_l.unwrap()) {
             let rotation = Quat::from_axis_angle(-dir.0, ang_roll.to_radians() * time.delta_secs());
             dir.1 = rotation.mul_vec3(dir.1);
         }
 
-        if keys.pressed(KeyCode::KeyD) {
+        if keys.pressed(controls.roll_r.unwrap()) {
             let rotation = Quat::from_axis_angle(dir.0, ang_roll.to_radians() * time.delta_secs());
             dir.1 = rotation.mul_vec3(dir.1);
         }
     }
-    if keys.pressed(KeyCode::Space) {
+    if keys.pressed(controls.brake.unwrap()) {
         let Vec3 {
             mut x,
             mut y,
@@ -164,7 +167,7 @@ fn spaceship_controls(
         inertia.velocity.0 = Vec3 { x, y, z };
     }
 
-    if keys.pressed(KeyCode::KeyL) {
+    if keys.pressed(controls.shoot.unwrap()) {
         for (ent, mut tur) in turret_query.iter_mut() {
             // error!("relesed");
             tur.0.shooting = true;
@@ -172,7 +175,7 @@ fn spaceship_controls(
             ev_turret_on.send(ShootTurretEventOn(ent.clone()));
         }
     }
-    if keys.just_released(KeyCode::KeyL) {
+    if keys.just_released(controls.shoot.unwrap()) {
         for (ent, mut tur) in turret_query.iter_mut() {
             tur.0.shooting = false;
             ev_turret_off.send(ShootTurretEventOff(ent.clone()));
@@ -282,7 +285,7 @@ pub fn spawn_spaceship(
                         transform: Transform::from_translation(Vec3::new(0., -6., 0.))
                             // .with_rotation(Quat::from_rotation_y(std::f32::consts::PI))
                             // .with_translation(Vec3::new(0.0, 5., 0.0))
-                            .with_scale(Vec3::new(0.5, 0.5, 0.5))
+                            .with_scale(Vec3::new(1., 1., 1.))
                             .looking_at(Vec3::ZERO, Vec3::Z),
                         throttle_audio: AudioPlayer(audio_assets.throttle_up.clone()),
                         playback_settings: PlaybackSettings {

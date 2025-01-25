@@ -27,7 +27,7 @@ impl Plugin for TurretEventPlugin {
             .add_systems(
                 Update,
                 (turret_sound_on, turret_sound_off)
-                    .after(InputSet::InGame(Controls::InGame(InGameSet::SpaceShip))),
+                    .after(InputSet::InGame(ControlsSet::InGame(InGameSet::SpaceShip))),
             );
     }
 }

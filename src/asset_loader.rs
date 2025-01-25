@@ -11,6 +11,7 @@ pub struct SceneAssets {
     pub bot_spaceship3: Handle<Scene>,
     pub map_marker: Handle<Scene>,
     pub planet1: Handle<Scene>,
+    pub terrain: Handle<Scene>,
 }
 
 #[derive(Resource, Debug, Default)]
@@ -43,6 +44,7 @@ fn load_scene_assets(mut scene_assets: ResMut<SceneAssets>, asset_server: Res<As
         bot_spaceship2: asset_server.load("Spaceship3.glb#Scene0"),
         bot_spaceship3: asset_server.load("Spaceship4.glb#Scene0"),
         planet1: asset_server.load("Planet1_hollow.glb#Scene0"),
+        terrain: asset_server.load("terrain/lowpolylandscape.glb#Scene0"),
     }
 }
 

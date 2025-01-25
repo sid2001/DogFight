@@ -5,6 +5,7 @@ pub mod environment;
 pub mod mesh;
 pub mod movement;
 pub mod obstacle;
+mod oct_tree;
 pub mod spaceship;
 pub mod turret;
 
@@ -16,6 +17,7 @@ use debug::DebugPlugin;
 use environment::LandscapePlugin;
 use mesh::TestMeshPlugin;
 use obstacle::ObstaclePlugin;
+use oct_tree::OctTreePlugin;
 use spaceship::SpaceShipPlugin;
 use turret::TurretPlugin;
 
@@ -29,9 +31,10 @@ impl Plugin for GamePlugin {
         .add_plugins(TurretEventPlugin)
         .add_plugins(CameraPlugin)
         .add_plugins(SpaceShipPlugin)
-        // .add_plugins(ObstaclePlugin)
-        // .add_plugins(TestMeshPlugin)
-        // .add_plugins(BotPlugin);
-        .add_plugins(DebugPlugin);
+        .add_plugins(ObstaclePlugin)
+        // .add_plugins(TestMeshPlugin);
+        .add_plugins(BotPlugin);
+        // .add_plugins(DebugPlugin)
+        // .add_plugins(OctTreePlugin);
     }
 }

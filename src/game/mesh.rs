@@ -7,11 +7,18 @@ use bevy::render::{
 
 #[derive(Component)]
 pub struct CustomMesh;
+#[derive(Resource, Default)]
+pub struct MeshResource {
+    pub Landscape: Option<Handle<Mesh>>,
+    pub Trees: Option<Handle<Mesh>>,
+    pub Player: Option<Handle<Mesh>>,
+}
 
 pub struct TestMeshPlugin;
 impl Plugin for TestMeshPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, setup_mesh);
+        app.init_resource::<MeshResource>()
+            .add_systems(Startup, setup_mesh);
     }
 }
 
@@ -20,16 +27,17 @@ fn setup_mesh(
     asset_server: Res<AssetServer>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
+    mut mesh_res: ResMut<MeshResource>,
 ) {
     let length: f32 = 100.;
-    let l_pieces: u32 = 200;
+    let l_pieces: u32 = 300;
     let w_pieces: u32 = 300;
     let axes = (Vec3::Y, Vec3::Z);
     let origin = Vec3::new(0., 0., 0.);
 
-    let mesh_handle = meshes.add(create_mesh(length, l_pieces, w_pieces, axes, origin));
+    mesh_res.Landscape = Some(meshes.add(create_mesh(length, l_pieces, w_pieces, axes, origin)));
     commands.spawn((
-        Mesh3d(mesh_handle),
+        Mesh3d(mesh_res.Landscape.as_ref().unwrap().clone()),
         MeshMaterial3d(materials.add(Color::srgb(0.255, 0.0, 0.0))),
         CustomMesh,
     ));
@@ -85,6 +93,16 @@ fn create_mesh(
 
 fn get_tridinate(d1: f32, d2: f32, origin: &Vec3, axes: &(Vec3, Vec3)) -> Vec3 {
     let mut vertex = *origin + d1 * axes.0 + d2 * axes.1;
-    vertex.x = (vertex.y).sin();
+    let y = if vertex.y.sin() > 0. {
+        vertex.y.sin()
+    } else {
+        0.
+    };
+    let z = if vertex.z.sin() > 0. {
+        vertex.z.sin()
+    } else {
+        0.
+    };
+    vertex.x = y * 4.;
     vertex
 }
