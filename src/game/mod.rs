@@ -7,6 +7,8 @@ pub mod movement;
 pub mod obstacle;
 mod oct_tree;
 pub mod spaceship;
+pub mod swarm;
+mod terrain;
 pub mod turret;
 
 use crate::events::TurretEventPlugin;
@@ -19,6 +21,8 @@ use mesh::TestMeshPlugin;
 use obstacle::ObstaclePlugin;
 use oct_tree::OctTreePlugin;
 use spaceship::SpaceShipPlugin;
+use swarm::SwarmPlugin;
+use terrain::TerrainPlugin;
 use turret::TurretPlugin;
 
 pub struct GamePlugin;
@@ -31,10 +35,12 @@ impl Plugin for GamePlugin {
         .add_plugins(TurretEventPlugin)
         .add_plugins(CameraPlugin)
         .add_plugins(SpaceShipPlugin)
-        .add_plugins(ObstaclePlugin)
+        .add_plugins(SwarmPlugin);
+        // .add_plugins(ObstaclePlugin)
         // .add_plugins(TestMeshPlugin);
-        .add_plugins(BotPlugin);
-        // .add_plugins(DebugPlugin)
+        // .add_plugins(BotPlugin);
+        // .add_plugins(DebugPlugin);
+        // .add_plugins(TerrainPlugin)
         // .add_plugins(OctTreePlugin);
     }
 }

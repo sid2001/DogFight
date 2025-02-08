@@ -12,6 +12,8 @@ pub struct SceneAssets {
     pub map_marker: Handle<Scene>,
     pub planet1: Handle<Scene>,
     pub terrain: Handle<Scene>,
+    pub mes: Handle<Mesh>,
+    pub swarm_point: Handle<Scene>,
 }
 
 #[derive(Resource, Debug, Default)]
@@ -45,6 +47,8 @@ fn load_scene_assets(mut scene_assets: ResMut<SceneAssets>, asset_server: Res<As
         bot_spaceship3: asset_server.load("Spaceship4.glb#Scene0"),
         planet1: asset_server.load("Planet1_hollow.glb#Scene0"),
         terrain: asset_server.load("terrain/lowpolylandscape.glb#Scene0"),
+        swarm_point: asset_server.load("Planet-18Uxrb2dIc.glb#Scene0"),
+        mes: asset_server.load(GltfAssetLabel::Scene(0).from_asset("Spaceship.gltf")),
     }
 }
 

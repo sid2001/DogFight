@@ -112,7 +112,7 @@ fn chase_target(
                 motion.velocity = velocity;
                 trans.translation += motion.velocity.clone() * t;
                 motion.drag = -motion.velocity.clone() * 2.;
-                info!("Velocityy bot {}", motion.velocity.length());
+                // info!("Velocityy bot {}", motion.velocity.length());
             }
             _ => (),
         }

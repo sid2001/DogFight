@@ -11,4 +11,5 @@ opt-level = 3
 
 [dependencies]
 bevy = { version = "0.15", features = ["dynamic_linking"] }
+bevy_dev_tools = "0.15.1"
 bevy_panorbit_camera = "0.21"

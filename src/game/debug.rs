@@ -20,15 +20,33 @@ pub struct MyTimer(Timer);
 pub struct DebugPlugin;
 impl Plugin for DebugPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(MyTimer(Timer::new(
-            Duration::from_secs_f32(1.),
-            TimerMode::Repeating,
-        )))
-        .add_systems(Startup, (spawn_planet, spawn_bot))
-        .add_systems(
-            Update,
-            (detect_collision, avoid_obstacle, print_position).chain(),
-        );
+        app
+            // .insert_resource(MyTimer(Timer::new(
+            //     Duration::from_secs_f32(1.),
+            //     TimerMode::Repeating,
+            // )))
+            // .add_systems(Startup, (spawn_planet, spawn_bot))
+            // .add_systems(
+            //     Update,
+            //     (detect_collision, avoid_obstacle, print_position).chain(),
+            // )
+            .add_systems(PostStartup, mark_spaceship);
+    }
+}
+
+fn mark_spaceship(
+    mut commands: Commands,
+    query: Query<(&Transform, &SceneRoot), With<SpaceShip>>,
+    scene_asset: Res<SceneAssets>,
+) {
+    for (trans, scene) in query.iter() {
+        // info!("spawned marker {}",scene.);
+        commands.spawn((
+            SceneRoot(scene_asset.map_marker.clone()),
+            Transform::from_translation(trans.translation.clone())
+                .with_scale(Vec3::new(0.05, 0.05, 0.05))
+                .with_rotation(trans.rotation.clone()),
+        ));
     }
 }
 
