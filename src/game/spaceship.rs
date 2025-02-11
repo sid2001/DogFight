@@ -1,5 +1,6 @@
 use super::bots::*;
 use super::movement::{Direction, Drag, Inertia, Position};
+use super::swarm::*;
 use super::turret::*;
 use crate::asset_loader::{AudioAssets, SceneAssets};
 use crate::controls::Controls;
@@ -295,6 +296,7 @@ pub fn spawn_spaceship(
                             ..default()
                         },
                     },
+                    SwarmTarget,
                     TargetMarker,
                     listener.clone(),
                 ))
