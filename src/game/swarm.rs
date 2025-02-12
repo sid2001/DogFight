@@ -51,7 +51,7 @@ impl Default for SwarmData {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub enum SwarmBotState {
     Swarming,
     InSwarm,
@@ -73,6 +73,9 @@ pub struct SwarmBot {
     swarm_data: SwarmData,
     state: SwarmBotState,
     swarm_up_distance: f32,
+    repel_thrust: f32,
+    swarm_spacing_min: f32,
+    swarm_spacing_max: f32,
 }
 
 impl Default for SwarmBot {
@@ -90,7 +93,10 @@ impl Default for SwarmBot {
             target_distance: 9999.,
             swarm_data: SwarmData::default(),
             state: SwarmBotState::Solo,
-            swarm_up_distance: 10.,
+            swarm_up_distance: 4.,
+            repel_thrust: 0.5,
+            swarm_spacing_min: 0.25,
+            swarm_spacing_max: 0.5,
         }
     }
 }
@@ -179,9 +185,9 @@ fn release_bots(
         for _ in 0..count {
             let mut rng = rand::rng();
             let (x, y, z) = (
-                rng.random_range(0.0..=0.1),
-                rng.random_range(0.0..=0.1),
-                rng.random_range(0.0..=0.1),
+                rng.random_range(-1.0..=1.0),
+                rng.random_range(-1.0..=1.0),
+                rng.random_range(-1.0..=1.0),
             );
             let dir = Vec3::new(x, y, z).normalize_or(Vec3::Y);
             let rad = swarm_point.radius;
@@ -189,7 +195,6 @@ fn release_bots(
             let bot = SwarmBot {
                 dir: Dir3::new(dir).unwrap_or(Dir3::Y),
                 velocity: dir * 0.0,
-                thrust: 0.,
                 drag: Vec3::ZERO,
                 ..default()
             };
@@ -197,7 +202,7 @@ fn release_bots(
             let pos = bot.dir.clone() * rad;
             // info!("Pos: {pos:?}");
             let transform = Transform::from_translation(trans.translation.clone() + pos)
-                .with_scale(Vec3::new(0.2, 0.2, 0.2))
+                .with_scale(Vec3::new(0.1, 0.1, 0.1))
                 .looking_to(bot.dir.clone(), Dir3::Y);
             let scene = SceneRoot(scene_assets.bot_spaceship.clone());
             let entity = commands.spawn((bot, transform, scene, SwarmBotMarker)).id();
@@ -358,6 +363,7 @@ fn avoidance(
 fn swarm_up(
     mut query_bots: Query<(Entity, &Transform, &mut SwarmBot), With<SwarmBotMarker>>,
     mut swarm_tracker: ResMut<SwarmTracker>,
+    time: Res<Time>,
 ) {
     let bots: Vec<_> = query_bots
         .iter()
@@ -375,6 +381,11 @@ fn swarm_up(
                         if e1 == *e2 {
                             continue;
                         }
+
+                        // verify if this is necessary
+                        if swarm_tracker.0[&e2].leader == Some(e1) {
+                            continue;
+                        }
                         if (t1.translation - t2.translation).length() <= b1.swarm_up_distance {
                             //swarm up only when coming from behind
                             //right swarming up the first bot it see, not with the closest one
@@ -386,9 +397,9 @@ fn swarm_up(
                                 // b1.swarm_data.leader = Some(e2.clone());
                                 // let t_swarm_data: SwarmData;
                                 swarm_tracker.0.entry(e2.clone()).and_modify(|d| {
-                                    d.state = SwarmBotState::InSwarm;
                                     d.followers += 1;
-                                    d.leader = Some(e2.clone());
+                                    d.state = SwarmBotState::InSwarm;
+                                    // d.leader = Some(e2.clone());
                                 });
                                 info!("{} swarming with {}", e1.to_bits(), e2.to_bits());
                                 swarm_tracker.0.entry(e1.clone()).and_modify(|d| {
@@ -414,12 +425,26 @@ fn swarm_up(
                     let leader_transform = bots
                         .iter()
                         .find(|(e, _, _)| *e == leader)
-                        .map(|(_, t, b2)| (t.clone(), b2.clone()));
-                    if let Some((l_trans, b2)) = leader_transform {
+                        .map(|(e2, t, b2)| (e2.clone(), t.clone(), b2.clone()));
+                    if let Some((e2, l_trans, b2)) = leader_transform {
+                        // verify if this is required
+                        if swarm_tracker.0[&e2].leader == Some(e1) {
+                            continue;
+                        }
                         // Perform operations with leader_transform
-                        if (l_trans.translation - t1.translation).length() <= 0.5 {
+                        if (l_trans.translation - t1.translation).length() <= b1.swarm_spacing_max {
                             swarm_tracker.0.entry(e1.clone()).and_modify(|d| {
                                 d.state = SwarmBotState::InSwarm;
+                            });
+                            if swarm_tracker.0[&e2].state == SwarmBotState::Solo {
+                                swarm_tracker.0.entry(e2.clone()).and_modify(|d| {
+                                    d.state = SwarmBotState::InSwarm;
+                                    d.leader = Some(e2.clone());
+                                });
+                            }
+                            swarm_tracker.0.entry(e2.clone()).and_modify(|d| {
+                                // d.state = SwarmBotState::InSwarm;
+                                d.leader = Some(e2.clone());
                             });
                             b1.target_dir = l_trans.forward();
                             info!("{} in swarm with", e1.to_bits());
@@ -436,6 +461,21 @@ fn swarm_up(
                         swarm_tracker.0.entry(e1.clone()).and_modify(|d| {
                             d.state = SwarmBotState::Solo;
                         });
+                    }
+                }
+                SwarmBotState::InSwarm => {
+                    for (e2, t2, _) in bots.iter() {
+                        if e1 == *e2 {
+                            continue;
+                        }
+                        let separation_vector = t2.translation - t1.translation;
+                        if separation_vector.length() < b1.swarm_spacing_min {
+                            b1.velocity = {
+                                b1.velocity
+                                    + (-separation_vector.normalize_or_zero() * b1.repel_thrust)
+                                        * time.delta_secs()
+                            };
+                        }
                     }
                 }
                 _ => (),
@@ -456,3 +496,6 @@ fn swarm_up(
 // try to serialize swarm, communicate swarm members of their global leaders
 // make the thrust control more stable and dynamic
 // give name to swarms so that avoidance mechanics still works if outer swarm bot tries to cut
+
+// swarm bot is repelling all the bots in vicinity make it specific to only swarm bots
+// add another method to coerce bots in swarm repel thrust sometimes is too much
