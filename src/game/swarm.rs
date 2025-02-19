@@ -1,5 +1,6 @@
 use crate::asset_loader::SceneAssets;
 use bevy::{math::VectorSpace, prelude::*, state::commands};
+use core::slice;
 use rand::Rng;
 use std::borrow::{Borrow, BorrowMut};
 use std::cell::RefCell;
@@ -35,10 +36,9 @@ pub struct SwarmData {
     followers: u32,
     followers_limit: u32,
     state: SwarmBotState,
+    last_state: SwarmBotState,
+    swarm_id: u32,
 }
-
-#[derive(Resource, Clone)]
-pub struct SwarmTracker(HashMap<Entity, SwarmData>);
 
 impl Default for SwarmData {
     fn default() -> Self {
@@ -47,21 +47,77 @@ impl Default for SwarmData {
             followers: 0,
             followers_limit: 5,
             state: SwarmBotState::Solo,
+            last_state: SwarmBotState::Solo,
+            swarm_id: 0,
         }
     }
 }
+
+#[derive(Clone)]
+pub struct SwarmIdPool {
+    front: i32,
+    back: i32,
+    limit: u32,
+    id_pool: Vec<u32>,
+}
+
+impl Default for SwarmIdPool {
+    fn default() -> Self {
+        let limit: u32 = 20;
+        let mut id_pool = Vec::new();
+        for i in 0..limit {
+            id_pool.push(i + 1);
+        }
+        Self {
+            front: 0,
+            back: limit as i32 - 1,
+            limit,
+            id_pool,
+        }
+    }
+}
+
+impl SwarmIdPool {
+    fn get_id(&mut self) -> u32 {
+        if self.front != -1 {
+            let x = self.id_pool[self.front as usize];
+            if self.front == self.back {
+                self.front = -1;
+                self.back = -1;
+            } else {
+                self.front = (self.front + 1) % self.limit as i32;
+            }
+            x
+        } else {
+            0
+        }
+    }
+
+    fn free_id(&mut self, id: u32) {
+        self.back = (self.back + 1) % self.limit as i32;
+        self.id_pool[self.back as usize] = id;
+        if self.front == -1 {
+            self.front = self.back;
+        }
+    }
+}
+
+#[derive(Resource, Clone)]
+pub struct SwarmTracker(HashMap<Entity, SwarmData>, SwarmIdPool);
 
 #[derive(Clone, PartialEq)]
 pub enum SwarmBotState {
     Swarming,
     InSwarm,
     Solo,
+    Avoid,
 }
 #[derive(Component, Clone)]
 #[require(SceneRoot)]
 pub struct SwarmBot {
     dir: Dir3,
     target_dir: Dir3,
+    avoid_dir_vector: Dir3,
     velocity: Vec3,
     thrust: f32,
     thrust_limit: f32,
@@ -84,6 +140,7 @@ impl Default for SwarmBot {
             health: 10.,
             dir: Dir3::Y,
             target_dir: Dir3::Y,
+            avoid_dir_vector: Dir3::Y,
             thrust: 0.,
             thrust_limit: 10.,
             angular_velocity: 200.,
@@ -124,18 +181,14 @@ impl SwarmPoint {
 pub struct SwarmPlugin;
 impl Plugin for SwarmPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(SwarmTracker(HashMap::new()))
+        app.insert_resource(SwarmTracker(HashMap::new(), SwarmIdPool::default()))
             .add_systems(Startup, setup)
             .add_systems(Update, release_bots)
             .add_systems(
                 Update,
                 (
-                    detect_target,
-                    swarm_up,
-                    avoidance,
-                    steer,
-                    accelerate,
-                    move_bots,
+                    // detect_target,
+                    swarm_up, avoidance, steer, accelerate, move_bots,
                 )
                     .chain(),
             );
@@ -215,48 +268,49 @@ fn move_bots(
     mut query_bots: Query<(&mut Transform, &SwarmBot), With<SwarmBotMarker>>,
     time: Res<Time>,
 ) {
-    query_bots
-        .par_iter_mut()
-        .for_each(|(mut trans, swarm_bot)| {
-            trans.translation += swarm_bot.velocity * time.delta_secs();
-        });
+    // query_bots
+    //     .par_iter_mut()
+    //     .for_each(|(mut trans, swarm_bot)| {
+    //         trans.translation += swarm_bot.velocity * time.delta_secs();
+    //     });
 
-    // for (mut trans, swarm_bot) in query_bots.iter_mut() {
-    //     trans.translation += swarm_bot.velocity * time.delta_secs();
-    // }
+    for (mut trans, swarm_bot) in query_bots.iter_mut() {
+        trans.translation += swarm_bot.velocity * time.delta_secs();
+    }
 }
 
 fn steer(
     mut query_bots: Query<(&mut Transform, &mut SwarmBot), With<SwarmBotMarker>>,
     time: Res<Time>,
 ) {
-    query_bots.par_iter_mut().for_each(|(mut trans, mut bot)| {
-        if !bot.in_swarm {
-            let rot_axis = bot.dir.as_vec3().cross(bot.target_dir.as_vec3());
-            let rotation = Quat::from_axis_angle(
-                rot_axis.normalize_or_zero(),
-                bot.angular_velocity.to_radians() * time.delta_secs(),
-            );
-            trans.rotate(rotation);
-            bot.dir = trans.forward();
-        } else {
-            todo!();
-        }
-    });
+    // query_bots.par_iter_mut().for_each(|(mut trans, mut bot)| {
+    //     // if !bot.in_swarm {
+    //     let rot_axis = bot.dir.as_vec3().cross(bot.target_dir.as_vec3());
+    //     let rotation = Quat::from_axis_angle(
+    //         rot_axis.normalize_or_zero(),
+    //         bot.angular_velocity.to_radians() * time.delta_secs(),
+    //     );
+    //     trans.rotate(rotation);
+    //     bot.dir = Dir3::new(trans.forward().as_vec3().normalize_or_zero()).unwrap_or(Dir3::Y);
+    //     // } else {
+    //     // todo!();
+    //     // }
+    // });
 
-    // for (mut trans, mut bot) in query_bots.iter_mut() {
-    //     if !bot.in_swarm {
-    //         let rot_axis = bot.dir.as_vec3().cross(bot.target_dir.as_vec3());
-    //         let roatation = Quat::from_axis_angle(
-    //             rot_axis.normalize_or_zero(),
-    //             bot.angular_velocity.to_radians() * time.delta_secs(),
-    //         );
-    //         trans.rotate(roatation);
-    //         bot.dir = trans.forward();
-    //     } else {
-    //         todo!();
-    //     }
-    // }
+    for (mut trans, mut bot) in query_bots.iter_mut() {
+        //     if !bot.in_swarm {
+        let rot_axis = bot.dir.as_vec3().cross(bot.target_dir.as_vec3());
+        let rotation = Quat::from_axis_angle(
+            rot_axis.normalize_or_zero(),
+            bot.angular_velocity.to_radians() * time.delta_secs(),
+        );
+        trans.rotate(rotation);
+        bot.dir = trans.forward();
+
+        //     } else {
+        //         todo!();
+        //     }
+    }
 }
 
 fn accelerate(mut query_bots: Query<&mut SwarmBot, With<SwarmBotMarker>>, time: Res<Time>) {
@@ -280,26 +334,33 @@ fn accelerate(mut query_bots: Query<&mut SwarmBot, With<SwarmBotMarker>>, time: 
 }
 
 fn detect_target(
-    mut query_bots: Query<(&Transform, &mut SwarmBot), With<SwarmBotMarker>>,
+    mut query_bots: Query<(Entity, &Transform, &mut SwarmBot), With<SwarmBotMarker>>,
     query_target: Query<&Transform, (With<SwarmTarget>, Without<SwarmBotMarker>)>,
+    swarm_tracker: Res<SwarmTracker>,
 ) {
-    query_bots.par_iter_mut().for_each(|(trans_bot, mut bot)| {
-        let mut target: Vec3 = Vec3::ZERO;
-        let mut dist: f32 = 9999.;
+    query_bots
+        .par_iter_mut()
+        .for_each(|(entity, trans_bot, mut bot)| {
+            let mut target: Vec3 = Vec3::ZERO;
+            let mut dist: f32 = 9999.;
+            let sd = swarm_tracker.0.get(&entity).unwrap();
+            if (sd.state == SwarmBotState::InSwarm && sd.leader.unwrap() == entity)
+                || sd.state == SwarmBotState::Solo
+            {
+                query_target.iter().for_each(|trans_target| {
+                    let target_dist = (trans_target.translation - trans_bot.translation).length();
+                    if dist > target_dist {
+                        target = trans_target.translation;
+                        dist = target_dist;
+                        // info!("target detected");
+                    }
+                });
 
-        query_target.iter().for_each(|trans_target| {
-            let target_dist = (trans_target.translation - trans_bot.translation).length();
-            if dist > target_dist {
-                target = trans_target.translation;
-                dist = target_dist;
-                // info!("target detected");
+                let dir = (target - trans_bot.translation).normalize_or_zero();
+                bot.target_dir = Dir3::new(dir).unwrap_or(Dir3::Y);
+                bot.target_distance = dist;
             }
         });
-
-        let dir = (target - trans_bot.translation).normalize_or_zero();
-        bot.target_dir = Dir3::new(dir).unwrap_or(Dir3::Y);
-        bot.target_distance = dist;
-    });
     // for (trans_bot, mut bot) in query_bots.iter_mut() {
     //     let mut target: Vec3 = Vec3::ZERO;
     //     let mut dist: f32 = 9999.; // this can break game if some bot went too far
@@ -332,6 +393,7 @@ fn avoidance(
         let mut obj = Vec3::ZERO;
         if let Some(swarm_data) = swarm_tracker.0.get(&e1) {
             match swarm_data.state {
+                SwarmBotState::Avoid => {}
                 SwarmBotState::Solo => {
                     for (e2, t2) in bots.iter() {
                         if e1 == *e2 {
@@ -370,6 +432,12 @@ fn swarm_up(
         .map(|(e, t, b)| (e.clone(), t.clone(), b.clone()))
         .collect();
 
+    let bots_map: HashMap<Entity, _> = bots
+        .clone()
+        .iter()
+        .map(|(e, t, b)| (e.clone(), (t.clone(), b.clone())))
+        .collect();
+
     for (e1, t1, mut b1) in query_bots.iter_mut() {
         // let mut dist = 999.;
         // let mut target_bot = Vec3::ZERO;
@@ -396,15 +464,32 @@ fn swarm_up(
                                 //first swarm up with the first one later move to its leader if it has space like a balanced tree
                                 // b1.swarm_data.leader = Some(e2.clone());
                                 // let t_swarm_data: SwarmData;
+                                let mut swarm_id: u32 = 0;
+                                if let Some(sd) = swarm_tracker.0.get(&e2) {
+                                    if sd.swarm_id != 0 {
+                                        swarm_id = sd.swarm_id;
+                                    } else {
+                                        swarm_id = swarm_tracker.1.get_id();
+                                        if swarm_id == 0 {
+                                            continue;
+                                        }
+                                    }
+                                } else {
+                                    error!("entity should have been present!!");
+                                }
+
                                 swarm_tracker.0.entry(e2.clone()).and_modify(|d| {
                                     d.followers += 1;
                                     d.state = SwarmBotState::InSwarm;
-                                    // d.leader = Some(e2.clone());
+                                    d.swarm_id = swarm_id;
+                                    d.leader = Some(e2.clone());
                                 });
+
                                 info!("{} swarming with {}", e1.to_bits(), e2.to_bits());
                                 swarm_tracker.0.entry(e1.clone()).and_modify(|d| {
                                     d.state = SwarmBotState::Swarming;
                                     d.leader = Some(e2.clone());
+                                    d.swarm_id = swarm_id;
                                 });
                                 b1.target_dir = Dir3::new(
                                     (t2.translation - t1.translation).normalize_or(Vec3::Y),
@@ -436,16 +521,16 @@ fn swarm_up(
                             swarm_tracker.0.entry(e1.clone()).and_modify(|d| {
                                 d.state = SwarmBotState::InSwarm;
                             });
-                            if swarm_tracker.0[&e2].state == SwarmBotState::Solo {
-                                swarm_tracker.0.entry(e2.clone()).and_modify(|d| {
-                                    d.state = SwarmBotState::InSwarm;
-                                    d.leader = Some(e2.clone());
-                                });
-                            }
-                            swarm_tracker.0.entry(e2.clone()).and_modify(|d| {
-                                // d.state = SwarmBotState::InSwarm;
-                                d.leader = Some(e2.clone());
-                            });
+                            // if swarm_tracker.0[&e2].state == SwarmBotState::Solo {
+                            //     swarm_tracker.0.entry(e2.clone()).and_modify(|d| {
+                            //         d.state = SwarmBotState::InSwarm;
+                            //         d.leader = Some(e2.clone());
+                            //     });
+                            // }
+                            // swarm_tracker.0.entry(e2.clone()).and_modify(|d| {
+                            //     // d.state = SwarmBotState::InSwarm;
+                            //     d.leader = Some(e2.clone());
+                            // });
                             b1.target_dir = l_trans.forward();
                             info!("{} in swarm with", e1.to_bits());
                             b1.thrust = b2.thrust;
@@ -460,10 +545,27 @@ fn swarm_up(
                     } else {
                         swarm_tracker.0.entry(e1.clone()).and_modify(|d| {
                             d.state = SwarmBotState::Solo;
+                            d.swarm_id = 0;
+                            d.leader = None;
                         });
                     }
                 }
                 SwarmBotState::InSwarm => {
+                    // error prone code block
+                    if let Some((e2, (t2, b2))) =
+                        bots_map.get_key_value(&swarm_tracker.0.get(&e1).unwrap().leader.unwrap())
+                    {
+                        if *e2 == e1 {
+                            continue;
+                        }
+                        if (t2.translation - t1.translation).length() > b1.swarm_spacing_max {
+                            swarm_tracker.0.get_mut(&e1).unwrap().state = SwarmBotState::Swarming;
+                            continue;
+                        }
+                        b1.target_dir = b2.dir;
+                    }
+                    // change the above block in future
+
                     for (e2, t2, _) in bots.iter() {
                         if e1 == *e2 {
                             continue;
@@ -499,3 +601,7 @@ fn swarm_up(
 
 // swarm bot is repelling all the bots in vicinity make it specific to only swarm bots
 // add another method to coerce bots in swarm repel thrust sometimes is too much
+
+// add alien swarm interaction and swarm merge
+// fix swarming bug since the max swarming reamins low bots are
+// swarming constantly, change repel thrust logic
