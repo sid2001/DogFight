@@ -1,4 +1,6 @@
+use super::explosion::ExplosibleObjectMarker;
 use crate::asset_loader::SceneAssets;
+use bevy::utils::info;
 use bevy::{math::VectorSpace, prelude::*, state::commands};
 use core::slice;
 use rand::Rng;
@@ -187,8 +189,12 @@ impl Plugin for SwarmPlugin {
             .add_systems(
                 Update,
                 (
-                    // detect_target,
-                    swarm_up, avoidance, steer, accelerate, move_bots,
+                    detect_target,
+                    swarm_up,
+                    avoidance,
+                    steer,
+                    accelerate,
+                    move_bots,
                 )
                     .chain(),
             );
@@ -257,8 +263,16 @@ fn release_bots(
             let transform = Transform::from_translation(trans.translation.clone() + pos)
                 .with_scale(Vec3::new(0.1, 0.1, 0.1))
                 .looking_to(bot.dir.clone(), Dir3::Y);
-            let scene = SceneRoot(scene_assets.bot_spaceship.clone());
-            let entity = commands.spawn((bot, transform, scene, SwarmBotMarker)).id();
+            let scene = SceneRoot(scene_assets.spaceship.clone());
+            let entity = commands
+                .spawn((
+                    bot,
+                    transform,
+                    scene,
+                    SwarmBotMarker,
+                    ExplosibleObjectMarker,
+                ))
+                .id();
             swarm_tracker.0.insert(entity, SwarmData::default());
         }
     }
@@ -314,23 +328,23 @@ fn steer(
 }
 
 fn accelerate(mut query_bots: Query<&mut SwarmBot, With<SwarmBotMarker>>, time: Res<Time>) {
-    query_bots.par_iter_mut().for_each(|mut swarm_bot| {
-        swarm_bot.velocity = {
-            swarm_bot.velocity
-                + (swarm_bot.drag + (swarm_bot.thrust * swarm_bot.dir.as_vec3()))
-                    * time.delta_secs()
-        };
-        swarm_bot.drag = -0.5 * swarm_bot.velocity
-    });
-
-    // for mut swarm_bot in query_bots.iter_mut() {
+    // query_bots.par_iter_mut().for_each(|mut swarm_bot| {
     //     swarm_bot.velocity = {
     //         swarm_bot.velocity
-    //             + (swarm_bot.drag.clone() + (swarm_bot.thrust * swarm_bot.dir.as_vec3()))
+    //             + (swarm_bot.drag + (swarm_bot.thrust * swarm_bot.dir.as_vec3()))
     //                 * time.delta_secs()
     //     };
-    //     swarm_bot.drag = -0.3 * swarm_bot.velocity;
-    // }
+    //     swarm_bot.drag = -0.5 * swarm_bot.velocity
+    // });
+
+    for mut swarm_bot in query_bots.iter_mut() {
+        swarm_bot.velocity = {
+            swarm_bot.velocity
+                + (swarm_bot.drag.clone() + (swarm_bot.thrust * swarm_bot.dir.as_vec3()))
+                    * time.delta_secs()
+        };
+        swarm_bot.drag = -0.5 * swarm_bot.velocity;
+    }
 }
 
 fn detect_target(
@@ -454,54 +468,59 @@ fn swarm_up(
                         if swarm_tracker.0[&e2].leader == Some(e1) {
                             continue;
                         }
-                        if (t1.translation - t2.translation).length() <= b1.swarm_up_distance {
+
+                        let costh = b1.velocity.normalize().dot(b2.velocity.normalize());
+                        if ((t1.translation - t2.translation).length() <= b1.swarm_up_distance)
+                            && (costh > 0.)
+                            && (swarm_tracker.0.get(&e2).unwrap().followers
+                                < swarm_tracker.0.get(&e2).unwrap().followers_limit)
+                        {
                             //swarm up only when coming from behind
                             //right swarming up the first bot it see, not with the closest one
-                            let costh = b1.velocity.normalize().dot(b2.velocity.normalize());
-                            if costh < 0. {
-                                continue;
-                            } else {
-                                //first swarm up with the first one later move to its leader if it has space like a balanced tree
-                                // b1.swarm_data.leader = Some(e2.clone());
-                                // let t_swarm_data: SwarmData;
-                                let mut swarm_id: u32 = 0;
-                                if let Some(sd) = swarm_tracker.0.get(&e2) {
-                                    if sd.swarm_id != 0 {
-                                        swarm_id = sd.swarm_id;
-                                    } else {
-                                        swarm_id = swarm_tracker.1.get_id();
-                                        if swarm_id == 0 {
-                                            continue;
-                                        }
-                                    }
-                                } else {
-                                    error!("entity should have been present!!");
-                                }
 
-                                swarm_tracker.0.entry(e2.clone()).and_modify(|d| {
-                                    d.followers += 1;
+                            //first swarm up with the first one later move to its leader if it has space like a balanced tree
+                            // b1.swarm_data.leader = Some(e2.clone());
+                            // let t_swarm_data: SwarmData;
+
+                            //checking if the swarm already exists and assigning swarm id if not
+                            let mut swarm_id: u32 = 0;
+                            if let Some(sd) = swarm_tracker.0.get(&e2) {
+                                if sd.swarm_id != 0 {
+                                    swarm_id = sd.swarm_id;
+                                } else {
+                                    swarm_id = swarm_tracker.1.get_id();
+                                    if swarm_id == 0 {
+                                        continue;
+                                    }
+                                }
+                            } else {
+                                error!("entity should have been present!!");
+                            }
+
+                            swarm_tracker.0.entry(e2.clone()).and_modify(|d| {
+                                d.followers += 1;
+                                if d.state == SwarmBotState::Solo {
                                     d.state = SwarmBotState::InSwarm;
                                     d.swarm_id = swarm_id;
                                     d.leader = Some(e2.clone());
-                                });
+                                }
+                            });
 
-                                info!("{} swarming with {}", e1.to_bits(), e2.to_bits());
-                                swarm_tracker.0.entry(e1.clone()).and_modify(|d| {
-                                    d.state = SwarmBotState::Swarming;
-                                    d.leader = Some(e2.clone());
-                                    d.swarm_id = swarm_id;
-                                });
-                                b1.target_dir = Dir3::new(
-                                    (t2.translation - t1.translation).normalize_or(Vec3::Y),
-                                )
-                                .unwrap();
-                                break;
-                                // b1.state = SwarmBotState::Swarming;
-                                // swarm_data.state = SwarmBotState::Swarming;
-                                // swarm_data.leader = Some(e2.clone());
-                                //think something to update the followers list
-                                // b2.swarm_data.followers += 1;
-                            }
+                            info!("{} swarming with {}", e1.to_bits(), e2.to_bits());
+                            swarm_tracker.0.entry(e1.clone()).and_modify(|d| {
+                                d.state = SwarmBotState::Swarming;
+                                d.leader = Some(e2.clone());
+                                d.swarm_id = swarm_id;
+                            });
+                            b1.target_dir =
+                                Dir3::new((t2.translation - t1.translation).normalize_or(Vec3::Y))
+                                    .unwrap();
+                            break;
+                            // b1.state = SwarmBotState::Swarming;
+                            // swarm_data.state = SwarmBotState::Swarming;
+                            // swarm_data.leader = Some(e2.clone());
+                            //think something to update the followers list
+                            // b2.swarm_data.followers += 1;
                         }
                     }
                 }
@@ -533,14 +552,16 @@ fn swarm_up(
                             // });
                             b1.target_dir = l_trans.forward();
                             info!("{} in swarm with", e1.to_bits());
+                            info!("{} b2 thrust", b2.thrust);
                             b1.thrust = b2.thrust;
                         } else {
-                            b1.target_dir = Dir3::new(
-                                (l_trans.translation - t1.translation).normalize_or(Vec3::ZERO),
-                            )
-                            .unwrap();
-                            info!("{} swarming with", e1.to_bits());
-                            b1.thrust = b2.thrust + 0.1;
+                            let diff = l_trans.translation - t1.translation;
+                            b1.target_dir = Dir3::new(diff.normalize_or(Vec3::ZERO)).unwrap();
+                            info!("{} swarming with {}", e1.to_bits(), e2.to_bits());
+
+                            b1.thrust = b2.thrust + 0.1 * diff.length();
+                            // this should work since the swarm up distance is less than 10
+                            // the idea is to accelerate faster when farther
                         }
                     } else {
                         swarm_tracker.0.entry(e1.clone()).and_modify(|d| {
@@ -571,12 +592,14 @@ fn swarm_up(
                             continue;
                         }
                         let separation_vector = t2.translation - t1.translation;
-                        if separation_vector.length() < b1.swarm_spacing_min {
-                            b1.velocity = {
-                                b1.velocity
-                                    + (-separation_vector.normalize_or_zero() * b1.repel_thrust)
-                                        * time.delta_secs()
-                            };
+                        if separation_vector.length()
+                            < (b1.swarm_spacing_min + b1.swarm_spacing_max) / 2.
+                        {
+                            // b1.velocity = {
+                            //     b1.velocity
+                            //         + (-separation_vector.normalize_or_zero() * b1.repel_thrust)
+                            //             * time.delta_secs()
+                            // };
                         }
                     }
                 }

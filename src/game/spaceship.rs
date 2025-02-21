@@ -1,4 +1,5 @@
 use super::bots::*;
+use super::explosion::ExplosibleObjectMarker;
 use super::movement::{Direction, Drag, Inertia, Position};
 use super::swarm::*;
 use super::turret::*;
@@ -270,6 +271,7 @@ pub fn spawn_spaceship(
             commands
                 .spawn((
                     SpaceShipBundle {
+                        model: SceneRoot(spaceship_scene),
                         health: Health(DEFAULT_HEALTH),
                         marker: SpaceShip,
                         position: Position(DEFAULT_SPAWN.clone()),
@@ -282,7 +284,6 @@ pub fn spawn_spaceship(
                             DEFAULT_DIRECTION.0.clone(),
                             DEFAULT_DIRECTION.1.clone(),
                         ),
-                        model: SceneRoot(spaceship_scene),
                         transform: Transform::from_translation(Vec3::new(0., -6., 0.))
                             // .with_rotation(Quat::from_rotation_y(std::f32::consts::PI))
                             // .with_translation(Vec3::new(0.0, 5., 0.0))
@@ -298,6 +299,7 @@ pub fn spawn_spaceship(
                     },
                     SwarmTarget,
                     TargetMarker,
+                    ExplosibleObjectMarker,
                     listener.clone(),
                 ))
                 .with_children(|parent| {

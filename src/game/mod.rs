@@ -2,6 +2,7 @@ pub mod bots;
 pub mod camera;
 pub mod debug;
 pub mod environment;
+pub mod explosion;
 pub mod mesh;
 pub mod movement;
 pub mod obstacle;
@@ -17,6 +18,7 @@ use bots::BotPlugin;
 use camera::CameraPlugin;
 use debug::DebugPlugin;
 use environment::LandscapePlugin;
+use explosion::ExplosionPlugin;
 use mesh::TestMeshPlugin;
 use obstacle::ObstaclePlugin;
 use oct_tree::OctTreePlugin;
@@ -35,12 +37,13 @@ impl Plugin for GamePlugin {
         .add_plugins(TurretEventPlugin)
         .add_plugins(CameraPlugin)
         .add_plugins(SpaceShipPlugin)
-        .add_plugins(SwarmPlugin);
+        // .add_plugins(SwarmPlugin)
         // .add_plugins(ObstaclePlugin)
         // .add_plugins(TestMeshPlugin);
         // .add_plugins(BotPlugin);
         // .add_plugins(DebugPlugin);
         // .add_plugins(TerrainPlugin)
         // .add_plugins(OctTreePlugin);
+        .add_plugins(ExplosionPlugin);
     }
 }

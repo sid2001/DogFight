@@ -37,7 +37,7 @@ impl Plugin for AssetLoaderPlugin {
 fn load_scene_assets(mut scene_assets: ResMut<SceneAssets>, asset_server: Res<AssetServer>) {
     *scene_assets = SceneAssets {
         asteroid: asset_server.load("Planet.glb#Scene0"),
-        spaceship: asset_server.load("Spaceship2.glb#Scene0"),
+        spaceship: asset_server.load(format!("Spaceship2.gltf#Scene0")),
         missiles: asset_server.load("Bullet.glb#Scene0"),
         player_turret: asset_server.load("lazer_bullet.glb#Scene0"),
         enemy_turret: asset_server.load("lazer_bullet2.glb#Scene0"),

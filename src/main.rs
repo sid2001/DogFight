@@ -9,6 +9,7 @@ use asset_loader::AssetLoaderPlugin;
 use bevy::prelude::*;
 use bevy::text::FontSmoothing;
 use bevy_dev_tools::fps_overlay::{FpsOverlayConfig, FpsOverlayPlugin};
+use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_panorbit_camera::{PanOrbitCamera, PanOrbitCameraPlugin};
 use controls::ControlPlugin;
 use events::EventPlugin;
@@ -81,6 +82,7 @@ fn main() {
         .add_plugins(StatePlugin)
         .add_plugins(GamePlugin)
         .add_plugins(ControlPlugin)
+        .add_plugins(WorldInspectorPlugin::new())
         // .add_plugins(PanOrbitCameraPlugin)
         // .add_systems(Startup, setup)
         // Wireframes can be configured with this resource. This can be changed at runtime.
