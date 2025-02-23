@@ -1,0 +1,204 @@
+{
+    "asset": {
+        "version": "2.0",
+        "generator": "Open Asset Import Library (assimp v5.4.0)"
+    },
+    "extensionsUsed": [
+        "KHR_materials_volume",
+        "FB_ngon_encoding"
+    ],
+    "accessors": [
+        {
+            "bufferView": 0,
+            "byteOffset": 0,
+            "componentType": 5126,
+            "count": 5507,
+            "type": "VEC3",
+            "max": [
+                0.0366845577955246,
+                0.035218216478824615,
+                0.018636079505085945
+            ],
+            "min": [
+                -0.0366845577955246,
+                -0.021815622225403786,
+                -0.03094227984547615
+            ]
+        },
+        {
+            "bufferView": 1,
+            "byteOffset": 0,
+            "componentType": 5126,
+            "count": 5507,
+            "type": "VEC3",
+            "max": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "min": [
+                -1.0,
+                -1.0,
+                -1.0
+            ]
+        },
+        {
+            "bufferView": 2,
+            "byteOffset": 0,
+            "componentType": 5126,
+            "count": 5507,
+            "type": "VEC2",
+            "max": [
+                0.0769246518611908,
+                0.42317503690719604
+            ],
+            "min": [
+                0.013700127601623535,
+                0.4212000370025635
+            ]
+        },
+        {
+            "bufferView": 3,
+            "byteOffset": 0,
+            "componentType": 5125,
+            "count": 18624,
+            "type": "SCALAR",
+            "max": [
+                5506
+            ],
+            "min": [
+                0
+            ]
+        }
+    ],
+    "buffers": [
+        {
+            "byteLength": 250720,
+            "uri": "SpaceshipBot_0.bin"
+        }
+    ],
+    "bufferViews": [
+        {
+            "buffer": 0,
+            "byteOffset": 0,
+            "byteLength": 66084,
+            "target": 34962
+        },
+        {
+            "buffer": 0,
+            "byteOffset": 66084,
+            "byteLength": 66084,
+            "target": 34962
+        },
+        {
+            "buffer": 0,
+            "byteOffset": 132168,
+            "byteLength": 44056,
+            "target": 34962
+        },
+        {
+            "buffer": 0,
+            "byteOffset": 176224,
+            "byteLength": 74496,
+            "target": 34963
+        }
+    ],
+    "images": [
+        {
+            "uri": "textures/image_0.png"
+        }
+    ],
+    "materials": [
+        {
+            "name": "30",
+            "pbrMetallicRoughness": {
+                "baseColorTexture": {
+                    "index": 0
+                },
+                "metallicFactor": 0.0
+            },
+            "alphaCutoff": 0.10000000149011612,
+            "alphaMode": "MASK",
+            "doubleSided": true
+        }
+    ],
+    "meshes": [
+        {
+            "name": "SpaceShipMeshBot",
+            "primitives": [
+                {
+                    "mode": 4,
+                    "material": 0,
+                    "indices": 3,
+                    "attributes": {
+                        "POSITION": 0,
+                        "NORMAL": 1,
+                        "TEXCOORD_0": 2
+                    }
+                }
+            ]
+        }
+    ],
+    "nodes": [
+        {
+            "name": "SpaceshipBot",
+            "children": [
+                1
+            ]
+        },
+        {
+            "name": "root",
+            "children": [
+                2
+            ],
+            "extras": {
+                "name": "root"
+            }
+        },
+        {
+            "name": "node_id5",
+            "matrix": [
+                -6.978411674499512,
+                -3.8737966581711756e-16,
+                8.466452031867225e-24,
+                0.0,
+                -3.8737974522645637e-16,
+                6.978413105010986,
+                -3.0503613857035816e-7,
+                0.0,
+                8.466452031867225e-24,
+                -3.050360817269393e-7,
+                -6.978411674499512,
+                0.0,
+                4.6065540004747163e-7,
+                -0.046764448285102844,
+                0.21306112408638,
+                1.0
+            ],
+            "mesh": 0,
+            "extras": {
+                "name": "node_id5"
+            }
+        }
+    ],
+    "samplers": [
+        {
+            "magFilter": 9729,
+            "minFilter": 9987
+        }
+    ],
+    "scenes": [
+        {
+            "nodes": [
+                0
+            ]
+        }
+    ],
+    "textures": [
+        {
+            "source": 0,
+            "sampler": 0
+        }
+    ],
+    "scene": 0
+}

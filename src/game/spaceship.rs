@@ -1,4 +1,5 @@
 use super::bots::*;
+use super::collider::*;
 use super::explosion::ExplosibleObjectMarker;
 use super::movement::{Direction, Drag, Inertia, Position};
 use super::swarm::*;
@@ -9,7 +10,10 @@ use crate::events::{ThrottleDownEvent, ThrottleUpEvent};
 use crate::sets::*;
 use crate::states::*;
 use bevy::audio::{PlaybackMode::*, Volume};
+use bevy::ecs::query;
 use bevy::prelude::*;
+use bevy::utils::info;
+use std::sync::{Arc, RwLock};
 
 const DEFAULT_HEALTH: f32 = 100.0;
 const DEFAULT_THRUST: Vec3 = Vec3::new(0.5, 0.5, 0.5);
@@ -67,6 +71,7 @@ impl Plugin for SpaceShipPlugin {
         .add_systems(
             Update,
             (
+                collision_response,
                 spaceship_controls
                     .in_set(InputSet::InGame(ControlsSet::InGame(InGameSet::SpaceShip))),
                 accelerate_spaceship,
@@ -249,6 +254,23 @@ fn spaceship_orientation(
     trans.rotate(roll);
 }
 
+fn collision_response(
+    mut query: Query<&mut Health, With<SpaceShip>>,
+    mut ev_reader: EventReader<CollisionEvents>,
+) {
+    // let health = query.single();
+    for msg in ev_reader.read() {
+        match msg {
+            CollisionEvents::TakeDamage(e, d) => {
+                if let Ok(mut health) = query.get_mut(e.clone()) {
+                    health.0 -= d;
+                    // info!("Health {}", health.0);
+                }
+            }
+        }
+    }
+}
+
 pub fn spawn_spaceship(
     mut commands: Commands,
     scene_assets: Res<SceneAssets>,
@@ -287,7 +309,7 @@ pub fn spawn_spaceship(
                         transform: Transform::from_translation(Vec3::new(0., -6., 0.))
                             // .with_rotation(Quat::from_rotation_y(std::f32::consts::PI))
                             // .with_translation(Vec3::new(0.0, 5., 0.0))
-                            .with_scale(Vec3::new(1., 1., 1.))
+                            // .with_scale(Vec3::new(1., 1., 1.))
                             .looking_at(Vec3::ZERO, Vec3::Z),
                         throttle_audio: AudioPlayer(audio_assets.throttle_up.clone()),
                         playback_settings: PlaybackSettings {
@@ -299,6 +321,15 @@ pub fn spawn_spaceship(
                     },
                     SwarmTarget,
                     TargetMarker,
+                    CollisionDamage(10.),
+                    ColliderInfo {
+                        collider_type: ColliderType::Sphere,
+                        collider: Arc::new(RwLock::new(SphericalCollider {
+                            radius: 0.3,
+                            center: Vec3::ZERO,
+                        })),
+                    },
+                    ColliderMarker,
                     ExplosibleObjectMarker,
                     listener.clone(),
                 ))
@@ -317,6 +348,7 @@ pub fn spawn_spaceship(
                                 AudioPlayer(audio_assets.laser_turret.clone()),
                                 PlaybackSettings {
                                     mode: Loop,
+                                    spatial: true,
                                     paused: true,
                                     ..default()
                                 },

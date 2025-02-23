@@ -1,9 +1,13 @@
+use bevy::utils::info;
 use bevy::{math::VectorSpace, prelude::*};
 
 use super::turret::*;
 use crate::asset_loader::*;
 
 use crate::asset_loader::SceneAssets;
+
+const SHOOT_VICINITY_ANGLE: f32 = 15.;
+const SHOOT_VICINITY_DISTANCE: f32 = 20.;
 
 // marks bot entities
 #[derive(Component)]
@@ -85,7 +89,7 @@ impl Plugin for BotPlugin {
         app.insert_resource(BotCount(0))
             .add_systems(Startup, spawn_bot)
             .add_systems(Update, (aim_target, chase_target).chain())
-            .add_systems(Update, shoot_turret::<BotTurret>);
+            .add_systems(Update, (shoot_target, shoot_turret::<BotTurret>).chain());
     }
 }
 
@@ -149,6 +153,51 @@ fn aim_target(
     }
 }
 
+fn shoot_target(
+    target_query: Query<&Transform, With<TargetMarker>>,
+    bot_query: Query<(&Transform, &Children, &BotMotion), (With<BotMarker>, Without<TargetMarker>)>,
+    mut bot_turret: Query<(Entity, &mut Turret), (With<TurretMarker>, With<BotTurret>)>,
+    mut ev_turret_off: EventWriter<ShootTurretEventOff>,
+    mut ev_turret_on: EventWriter<ShootTurretEventOn>,
+) {
+    'outer: for (b_trans, children, b_motion) in bot_query.iter() {
+        let mut dist: Vec3;
+        let mut angle: f32;
+
+        for trans in target_query.iter() {
+            dist = trans.translation - b_trans.translation;
+            angle = b_motion
+                .direction
+                .normalize_or_zero()
+                .dot(dist.normalize_or_zero());
+
+            if dist.length() <= SHOOT_VICINITY_DISTANCE
+                && angle.acos() <= SHOOT_VICINITY_ANGLE.to_radians()
+                && angle >= 0.
+            {
+                for child in children {
+                    if let Ok((ent, mut b_turret)) = bot_turret.get_mut(child.clone()) {
+                        if !b_turret.0.shooting {
+                            ev_turret_on.send(ShootTurretEventOn(ent.clone()));
+                        }
+                        b_turret.0.shooting = true;
+                    }
+                }
+                continue 'outer;
+            }
+            for child in children {
+                if let Ok((ent, mut b_turret)) = bot_turret.get_mut(child.clone()) {
+                    if b_turret.0.shooting {
+                        error!("sent audio down sound {}", ent.to_bits());
+                        ev_turret_off.send(ShootTurretEventOff(ent.clone()));
+                        b_turret.0.shooting = false;
+                    }
+                }
+            }
+        }
+    }
+}
+
 fn spawn_bot(
     mut commands: Commands,
     scene_asset: Res<SceneAssets>,
@@ -174,13 +223,18 @@ fn spawn_bot(
             parent.spawn((
                 Transform::from_xyz(0., 0., 0.),
                 Turret(TurretBundle {
-                    shooting: true,
+                    shooting: false,
                     speed: 20.,
                     bullet_size: 0.0002,
                     ..default()
                 }),
                 AudioPlayer(audio_assets.laser_turret.clone()),
-                PlaybackSettings::LOOP.with_spatial(true),
+                PlaybackSettings {
+                    mode: bevy::audio::PlaybackMode::Loop,
+                    paused: true,
+                    spatial: true,
+                    ..default()
+                },
                 BotTurret,
                 TurretMarker,
             ));
@@ -198,7 +252,12 @@ fn spawn_bot(
                 level: 1,
             },
             AudioPlayer(audio_assets.throttle_up.clone()),
-            PlaybackSettings::LOOP.with_spatial(true),
+            PlaybackSettings {
+                mode: bevy::audio::PlaybackMode::Loop,
+                paused: false,
+                spatial: true,
+                ..default()
+            },
             BotState::Chasing,
             BotMarker,
             Transform::from_xyz(20., 30., 40.).with_scale(Vec3::new(0.5, 0.5, 0.5)), // .looking_at(Vec3::Y, Vec3::Z), // .with_rotation(Quat::from_rotation_y(std::f32::consts::PI)),
@@ -207,13 +266,18 @@ fn spawn_bot(
             parent.spawn((
                 Transform::from_xyz(0., 0., 0.),
                 Turret(TurretBundle {
-                    shooting: true,
+                    shooting: false,
                     speed: 20.,
                     bullet_size: 0.0002,
                     ..default()
                 }),
                 AudioPlayer(audio_assets.laser_turret.clone()),
-                PlaybackSettings::LOOP.with_spatial(true),
+                PlaybackSettings {
+                    mode: bevy::audio::PlaybackMode::Loop,
+                    paused: true,
+                    spatial: true,
+                    ..default()
+                },
                 BotTurret,
                 TurretMarker,
             ));
@@ -231,7 +295,12 @@ fn spawn_bot(
                 level: 3,
             },
             AudioPlayer(audio_assets.throttle_up.clone()),
-            PlaybackSettings::LOOP.with_spatial(true),
+            PlaybackSettings {
+                mode: bevy::audio::PlaybackMode::Loop,
+                paused: false,
+                spatial: true,
+                ..default()
+            },
             BotState::Chasing,
             BotMarker,
             Transform::from_xyz(0., 0., 0.).with_scale(Vec3::new(0.5, 0.5, 0.5)), // .looking_at(Vec3::Y, Vec3::Z), // .with_rotation(Quat::from_rotation_y(std::f32::consts::PI)),
@@ -240,13 +309,18 @@ fn spawn_bot(
             parent.spawn((
                 Transform::from_xyz(0., 0., 0.),
                 Turret(TurretBundle {
-                    shooting: true,
+                    shooting: false,
                     speed: 20.,
                     bullet_size: 0.0002,
                     ..default()
                 }),
                 AudioPlayer(audio_assets.laser_turret.clone()),
-                PlaybackSettings::LOOP.with_spatial(true),
+                PlaybackSettings {
+                    mode: bevy::audio::PlaybackMode::Loop,
+                    paused: true,
+                    spatial: true,
+                    ..default()
+                },
                 BotTurret,
                 TurretMarker,
             ));
@@ -264,7 +338,12 @@ fn spawn_bot(
                 level: 2,
             },
             AudioPlayer(audio_assets.throttle_up.clone()),
-            PlaybackSettings::LOOP.with_spatial(true),
+            PlaybackSettings {
+                mode: bevy::audio::PlaybackMode::Loop,
+                paused: false,
+                spatial: true,
+                ..default()
+            },
             BotState::Chasing,
             BotMarker,
             Transform::from_xyz(30., 70., 0.).with_scale(Vec3::new(0.5, 0.5, 0.5)), // .looking_at(Vec3::Y, Vec3::Z), // .with_rotation(Quat::from_rotation_y(std::f32::consts::PI)),
@@ -273,13 +352,18 @@ fn spawn_bot(
             parent.spawn((
                 Transform::from_xyz(0., 0., 0.),
                 Turret(TurretBundle {
-                    shooting: true,
+                    shooting: false,
                     speed: 20.,
                     bullet_size: 0.0002,
                     ..default()
                 }),
                 AudioPlayer(audio_assets.laser_turret.clone()),
-                PlaybackSettings::LOOP.with_spatial(true),
+                PlaybackSettings {
+                    mode: bevy::audio::PlaybackMode::Loop,
+                    paused: true,
+                    spatial: true,
+                    ..default()
+                },
                 BotTurret,
                 TurretMarker,
             ));

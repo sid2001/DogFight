@@ -1,5 +1,6 @@
 use super::spaceship::SpaceShip;
 use bevy::math::bounding::Aabb3d;
+use bevy::math::VectorSpace;
 use bevy::render::primitives::Aabb;
 use bevy::render::view::PostProcessWrite;
 use bevy::{
@@ -54,28 +55,25 @@ fn setup(
     ab_query: Query<(&Aabb, &Name)>,
     player_query: Query<Entity, With<SpaceShip>>,
     mut run_once: ResMut<RunOnce>,
+    mut gizmos: Gizmos,
 ) {
     let mut sphere: Handle<Mesh>;
     let mut half_length_player: f32 = 0.;
     for (aabb, name) in ab_query.iter() {
         if name.as_str() == "SpaceShipMesh" {
-            half_length_player = (2. * aabb.half_extents).length();
+            let hl = aabb.half_extents;
+            half_length_player = (aabb.center + hl * 2.).length();
             run_once.0 = true;
         }
     }
     if run_once.0 == false {
         return;
     }
+
     for player in player_query.iter() {
         let explosion = Explosion { ..default() };
         // info!("so {:?}", aabb_parent.half_extents.length());
-        sphere = meshes.add(
-            Sphere {
-                radius: half_length_player,
-            }
-            .mesh()
-            .uv(32, 18),
-        );
+        sphere = meshes.add(Sphere { radius: 0.3 }.mesh().uv(32, 18));
         commands.entity(player).with_child((
             Mesh3d(sphere.clone()),
             ExplosionMarker,
@@ -107,13 +105,7 @@ fn explode(
             for player in player_query.iter() {
                 let explosion = Explosion { ..default() };
                 // info!("so {:?}", aabb_parent.half_extents.length());
-                sphere = meshes.add(
-                    Sphere {
-                        radius: half_length_player,
-                    }
-                    .mesh()
-                    .uv(32, 18),
-                );
+                sphere = meshes.add(Sphere { radius: 1.9 }.mesh().uv(32, 18));
                 commands.entity(player).with_child((
                     Mesh3d(sphere.clone()),
                     ExplosionMarker,
@@ -139,7 +131,7 @@ fn animate_explosion(
         if explosion.shrink == false {
             let rate = explosion.spread_rate;
             explosion.curr_size += rate * time.delta_secs();
-            trans.scale = trans.scale + rate * time.delta_secs();
+            // trans.scale = trans.scale + rate * time.delta_secs();
             info!("spreading {}", explosion.curr_size);
             if explosion.curr_size > explosion.max_size {
                 explosion.shrink = true;
@@ -151,7 +143,7 @@ fn animate_explosion(
                 explosion.curr_size = 0.1;
             }
             info!("shriking {}", explosion.curr_size);
-            trans.scale = trans.scale - rate * time.delta_secs();
+            // trans.scale = trans.scale - rate * time.delta_secs();
             if explosion.curr_size == 0. {
                 todo!()
             }

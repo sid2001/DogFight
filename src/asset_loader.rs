@@ -41,7 +41,7 @@ fn load_scene_assets(mut scene_assets: ResMut<SceneAssets>, asset_server: Res<As
         missiles: asset_server.load("Bullet.glb#Scene0"),
         player_turret: asset_server.load("lazer_bullet.glb#Scene0"),
         enemy_turret: asset_server.load("lazer_bullet2.glb#Scene0"),
-        bot_spaceship: asset_server.load("SpaceshipBot.glb#Scene0"),
+        bot_spaceship: asset_server.load("SpaceshipBot/SpaceshipBot.gltf#Scene0"),
         map_marker: asset_server.load("map_marker.glb#Scene0"),
         bot_spaceship2: asset_server.load("Spaceship3.glb#Scene0"),
         bot_spaceship3: asset_server.load("Spaceship4.glb#Scene0"),

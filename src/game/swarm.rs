@@ -143,7 +143,7 @@ impl Default for SwarmBot {
             dir: Dir3::Y,
             target_dir: Dir3::Y,
             avoid_dir_vector: Dir3::Y,
-            thrust: 0.,
+            thrust: 1.,
             thrust_limit: 10.,
             angular_velocity: 200.,
             drag: Vec3::ZERO,

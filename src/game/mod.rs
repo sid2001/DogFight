@@ -1,5 +1,6 @@
 pub mod bots;
 pub mod camera;
+pub mod collider;
 pub mod debug;
 pub mod environment;
 pub mod explosion;
@@ -16,6 +17,7 @@ use crate::events::TurretEventPlugin;
 use bevy::prelude::*;
 use bots::BotPlugin;
 use camera::CameraPlugin;
+use collider::{Collider, ColliderPlugin};
 use debug::DebugPlugin;
 use environment::LandscapePlugin;
 use explosion::ExplosionPlugin;
@@ -37,13 +39,14 @@ impl Plugin for GamePlugin {
         .add_plugins(TurretEventPlugin)
         .add_plugins(CameraPlugin)
         .add_plugins(SpaceShipPlugin)
+        .add_plugins(ColliderPlugin)
         // .add_plugins(SwarmPlugin)
-        // .add_plugins(ObstaclePlugin)
+        // .add_plugins(ObstaclePlugin);
         // .add_plugins(TestMeshPlugin);
-        // .add_plugins(BotPlugin);
+        .add_plugins(BotPlugin);
         // .add_plugins(DebugPlugin);
         // .add_plugins(TerrainPlugin)
         // .add_plugins(OctTreePlugin);
-        .add_plugins(ExplosionPlugin);
+        // .add_plugins(ExplosionPlugin);
     }
 }
