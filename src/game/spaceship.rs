@@ -255,16 +255,18 @@ fn spaceship_orientation(
 }
 
 fn collision_response(
-    mut query: Query<&mut Health, With<SpaceShip>>,
+    mut query: Query<(Entity, &mut Health), With<SpaceShip>>,
     mut ev_reader: EventReader<CollisionEvents>,
 ) {
     // let health = query.single();
     for msg in ev_reader.read() {
         match msg {
             CollisionEvents::TakeDamage(e, d) => {
-                if let Ok(mut health) = query.get_mut(e.clone()) {
-                    health.0 -= d;
-                    // info!("Health {}", health.0);
+                if let Ok((ent, mut health)) = query.get_mut(e.clone()) {
+                    if d.from.is_some_and(|e| e != ent) || d.from.is_none() {
+                        health.0 -= d.damage;
+                        info!("Health {}", health.0);
+                    }
                 }
             }
         }
@@ -321,7 +323,10 @@ pub fn spawn_spaceship(
                     },
                     SwarmTarget,
                     TargetMarker,
-                    CollisionDamage(10.),
+                    CollisionDamage {
+                        damage: 10.,
+                        from: None,
+                    },
                     ColliderInfo {
                         collider_type: ColliderType::Sphere,
                         collider: Arc::new(RwLock::new(SphericalCollider {
@@ -343,6 +348,7 @@ pub fn spawn_spaceship(
                                     shooting: false,
                                     speed: 10.,
                                     bullet_size: 0.0002,
+                                    shooter: Some(parent.parent_entity()),
                                     ..default()
                                 }),
                                 AudioPlayer(audio_assets.laser_turret.clone()),
@@ -366,6 +372,7 @@ pub fn spawn_spaceship(
                             shooting: false,
                             speed: 10.,
                             bullet_size: 0.0002,
+                            shooter: Some(parent.parent_entity()),
                             ..default()
                         }),
                         TurretMarker,

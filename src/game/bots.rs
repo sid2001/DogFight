@@ -226,6 +226,7 @@ fn spawn_bot(
                     shooting: false,
                     speed: 20.,
                     bullet_size: 0.0002,
+                    shooter: Some(parent.parent_entity()),
                     ..default()
                 }),
                 AudioPlayer(audio_assets.laser_turret.clone()),
@@ -269,6 +270,7 @@ fn spawn_bot(
                     shooting: false,
                     speed: 20.,
                     bullet_size: 0.0002,
+                    shooter: Some(parent.parent_entity()),
                     ..default()
                 }),
                 AudioPlayer(audio_assets.laser_turret.clone()),
@@ -312,6 +314,7 @@ fn spawn_bot(
                     shooting: false,
                     speed: 20.,
                     bullet_size: 0.0002,
+                    shooter: Some(parent.parent_entity()),
                     ..default()
                 }),
                 AudioPlayer(audio_assets.laser_turret.clone()),
@@ -355,6 +358,7 @@ fn spawn_bot(
                     shooting: false,
                     speed: 20.,
                     bullet_size: 0.0002,
+                    shooter: Some(parent.parent_entity()),
                     ..default()
                 }),
                 AudioPlayer(audio_assets.laser_turret.clone()),

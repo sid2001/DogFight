@@ -31,6 +31,7 @@ pub struct TurretBundle {
     pub speed: f32,
     pub direction: Dir3,
     pub bullet_size: f32,
+    pub shooter: Option<Entity>,
     pub bullet_inertial_velocity: Vec3,
 }
 
@@ -52,6 +53,7 @@ impl Default for TurretBundle {
             direction: Dir3::Y,
             bullet_size: 1.,
             bullet_inertial_velocity: Vec3::ZERO,
+            shooter: None,
         }
     }
 }
@@ -151,7 +153,14 @@ pub fn shoot_turret<T: Component>(
                             collider_type: ColliderType::Point,
                             collider: Arc::new(RwLock::new(PointCollider { center: Vec3::ZERO })),
                         },
-                        CollisionDamage(20.),
+                        CollisionDamage {
+                            damage: 20.,
+                            from: if tur.0.shooter.is_none() {
+                                None
+                            } else {
+                                Some(tur.0.shooter.unwrap())
+                            },
+                        },
                     ));
                 };
             }

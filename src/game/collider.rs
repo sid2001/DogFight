@@ -26,8 +26,12 @@ pub struct PointCollider {
     pub center: Vec3,
 }
 
-#[derive(Component)]
-pub struct CollisionDamage(pub f32);
+#[derive(Component, Clone, Copy)]
+pub struct CollisionDamage {
+    pub damage: f32,
+    // this field is only required when checking collision between bullets and objects
+    pub from: Option<Entity>,
+}
 
 #[derive(Component)]
 pub struct ColliderInfo {
@@ -38,7 +42,7 @@ pub struct ColliderInfo {
 
 #[derive(Event)]
 pub enum CollisionEvents {
-    TakeDamage(Entity, f32),
+    TakeDamage(Entity, CollisionDamage),
 }
 
 impl Collider for SphericalCollider {
@@ -168,11 +172,11 @@ fn detect_collisions(
                     .check_collision_with_sphere(&c2.collider)
                 {
                     if let Some(cd) = cd1 {
-                        ev_writer.send(CollisionEvents::TakeDamage(e2.clone(), cd.0));
+                        ev_writer.send(CollisionEvents::TakeDamage(e2.clone(), cd.clone()));
                     }
 
                     if let Some(cd) = cd2 {
-                        ev_writer.send(CollisionEvents::TakeDamage(e1.clone(), cd.0));
+                        ev_writer.send(CollisionEvents::TakeDamage(e1.clone(), cd.clone()));
                     }
                 }
             }
@@ -187,11 +191,11 @@ fn detect_collisions(
                     .check_collision_with_point(&c2.collider)
                 {
                     if let Some(cd) = cd1 {
-                        ev_writer.send(CollisionEvents::TakeDamage(e2.clone(), cd.0));
+                        ev_writer.send(CollisionEvents::TakeDamage(e2.clone(), cd.clone()));
                     }
 
                     if let Some(cd) = cd2 {
-                        ev_writer.send(CollisionEvents::TakeDamage(e1.clone(), cd.0));
+                        ev_writer.send(CollisionEvents::TakeDamage(e1.clone(), cd.clone()));
                     }
                 }
             }
