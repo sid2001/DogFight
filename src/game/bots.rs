@@ -13,6 +13,13 @@ const SHOOT_VICINITY_DISTANCE: f32 = 20.;
 #[derive(Component)]
 pub struct BotMarker;
 
+#[derive(Clone, PartialEq)]
+pub enum BotTargetVicinity {
+    Far,
+    Around,
+    Near,
+}
+
 // marks target entities
 #[derive(Component)]
 pub struct TargetMarker;
@@ -44,6 +51,7 @@ pub struct BotMotion {
     pub direction: Vec3,
     pub nearest_obstacle: (f32, Dir3),
     pub last_dir: Option<Dir3>,
+    pub target_vicinity: BotTargetVicinity,
 }
 
 impl Default for BotMotion {
@@ -56,6 +64,20 @@ impl Default for BotMotion {
             direction: Vec3::Z,
             nearest_obstacle: (f32::INFINITY, Dir3::Y),
             last_dir: None,
+            target_vicinity: BotTargetVicinity::Around,
+        }
+    }
+}
+
+impl BotMotion {
+    fn estimate_vicintiy(dist: f32) -> BotTargetVicinity {
+        // let dist = (p1 - p2).length();
+        if dist <= 3. {
+            BotTargetVicinity::Near
+        } else if dist <= 6. {
+            BotTargetVicinity::Around
+        } else {
+            BotTargetVicinity::Far
         }
     }
 }
@@ -88,7 +110,7 @@ impl Plugin for BotPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(BotCount(0))
             .add_systems(Startup, spawn_bot)
-            .add_systems(Update, (aim_target, chase_target).chain())
+            .add_systems(Update, (thrust_control, chase_target).chain())
             .add_systems(Update, (shoot_target, shoot_turret::<BotTurret>).chain());
     }
 }
@@ -103,8 +125,10 @@ fn chase_target(
 ) {
     let t_trans = target_query.single();
 
-    for (mut trans, mut state, mut motion) in bot_query.iter_mut() {
+    for (mut trans, state, mut motion) in bot_query.iter_mut() {
         // let target_distance = (t_trans.translation.clone() - trans.translation.clone()).length();
+        motion.target_vicinity =
+            BotMotion::estimate_vicintiy((t_trans.translation - trans.translation).length());
         let t = time.delta_secs();
         match *state {
             BotState::Chasing => {
@@ -114,11 +138,38 @@ fn chase_target(
                         + motion.velocity.clone()
                         + drag * t;
                 motion.velocity = velocity;
-                trans.translation += motion.velocity.clone() * t;
-                motion.drag = -motion.velocity.clone() * 2.;
+                trans.translation += motion.velocity * t;
+                motion.drag = -motion.velocity * 2.;
                 // info!("Velocityy bot {}", motion.velocity.length());
             }
             _ => (),
+        }
+    }
+}
+
+fn thrust_control(mut query_bots: Query<&mut BotMotion, With<BotMarker>>, time: Res<Time>) {
+    for mut bm in query_bots.iter_mut() {
+        match bm.target_vicinity {
+            BotTargetVicinity::Far => {
+                if bm.acceleration < 6. {
+                    bm.acceleration += 0.3 * time.delta_secs();
+                }
+            }
+            BotTargetVicinity::Around => {
+                if bm.acceleration > 2. {
+                    bm.acceleration -= 0.6 * time.delta_secs();
+                } else {
+                    bm.acceleration = 2.
+                }
+                // sb.thrust = 1.;
+            }
+            BotTargetVicinity::Near => {
+                if bm.acceleration > 0. {
+                    bm.acceleration -= 0.6 * time.delta_secs();
+                } else {
+                    bm.acceleration = 0.;
+                }
+            }
         }
     }
 }

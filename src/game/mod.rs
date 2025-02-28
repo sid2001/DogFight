@@ -43,8 +43,8 @@ impl Plugin for GamePlugin {
         .add_plugins(SwarmPlugin)
         // .add_plugins(ObstaclePlugin);
         // .add_plugins(TestMeshPlugin);
-        // .add_plugins(BotPlugin)
-        // .add_plugins(DebugPlugin);
+        .add_plugins(BotPlugin)
+        .add_plugins(DebugPlugin)
         // .add_plugins(TerrainPlugin)
         // .add_plugins(OctTreePlugin);
         .add_plugins(ExplosionPlugin);
