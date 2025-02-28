@@ -19,6 +19,12 @@ pub enum InputSet {
 }
 
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub enum DespawnSet {
+    InGame(InGameSet),
+    Menu(MenuSet),
+}
+
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ControlsSet {
     InGame(InGameSet),
 }
@@ -29,6 +35,8 @@ pub enum InGameSet {
     Camera,
     Obstacle,
     Environment,
+    Swarm,
+    Bots,
 }
 
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]

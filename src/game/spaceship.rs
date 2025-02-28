@@ -1,6 +1,7 @@
 use super::bots::*;
 use super::collider::*;
 use super::explosion::ExplosibleObjectMarker;
+use super::explosion::{Explosion, ExplosionEvent};
 use super::movement::{Direction, Drag, Inertia, Position};
 use super::swarm::*;
 use super::turret::*;
@@ -255,16 +256,29 @@ fn spaceship_orientation(
 }
 
 fn collision_response(
-    mut query: Query<(Entity, &mut Health), With<SpaceShip>>,
+    mut query: Query<(Entity, &Transform, &ColliderInfo, &mut Health), With<SpaceShip>>,
     mut ev_reader: EventReader<CollisionEvents>,
+    mut ev_explode: EventWriter<ExplosionEvent>,
 ) {
     // let health = query.single();
     for msg in ev_reader.read() {
         match msg {
             CollisionEvents::TakeDamage(e, d) => {
-                if let Ok((ent, mut health)) = query.get_mut(e.clone()) {
+                if let Ok((ent, trans, collider, mut health)) = query.get_mut(e.clone()) {
                     if d.from.is_some_and(|e| e != ent) || d.from.is_none() {
+                        if health.0 <= 0. {
+                            continue;
+                        }
                         health.0 -= d.damage;
+                        if health.0 <= 0. {
+                            ev_explode.send(ExplosionEvent {
+                                transform: trans.clone(),
+                                explosion: Explosion {
+                                    half_extent: 0.15,
+                                    ..default()
+                                },
+                            });
+                        }
                         info!("Health {}", health.0);
                     }
                 }

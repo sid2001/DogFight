@@ -179,7 +179,7 @@ pub fn turret_sound_on(
                 bun.play();
             }
         } else {
-            error!("Entity not present");
+            // error!("Entity not present");
         }
     }
 }
@@ -195,7 +195,7 @@ pub fn turret_sound_off(
                 bun.pause();
             }
         } else {
-            error!("Entity not present {}", entity.0.to_bits());
+            // error!("Entity not present {}", entity.0.to_bits());
         }
     }
 }
