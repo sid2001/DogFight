@@ -18,6 +18,7 @@ pub struct Controls {
     pub align_camera: Option<KeyCode>,
     pub steer_boost: Option<KeyCode>,
     pub camera_view: Option<KeyCode>,
+    pub toggle_rear_view: Option<KeyCode>,
 }
 
 impl Default for Controls {
@@ -39,6 +40,7 @@ impl Default for Controls {
             align_camera: Some(KeyCode::AltRight),
             steer_boost: Some(KeyCode::ShiftLeft),
             camera_view: Some(KeyCode::KeyV),
+            toggle_rear_view: Some(KeyCode::KeyC),
         }
     }
 }

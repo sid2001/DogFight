@@ -124,7 +124,7 @@
     ],
     "meshes": [
         {
-            "name": "SpaceShipMeshBot",
+            "name": "BotMesh",
             "primitives": [
                 {
                     "mode": 4,

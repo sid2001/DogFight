@@ -2,14 +2,14 @@ use bevy::prelude::*;
 
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum SetupSet {
-    InGame(InGameSet),
-    Menu(MenuSet),
+    InGame,
+    Menu,
 }
 
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum UpdateSet {
-    InGame(InGameSet),
-    Menu(MenuSet),
+    InGame,
+    Menu,
 }
 
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
@@ -40,4 +40,7 @@ pub enum InGameSet {
 }
 
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
-pub struct MenuSet;
+pub enum MenuSet {
+    Startup,
+    MenuItems,
+}

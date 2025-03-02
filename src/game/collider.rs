@@ -1,3 +1,4 @@
+use crate::sets::*;
 use bevy::prelude::*;
 
 use std::sync::{Arc, RwLock};
@@ -130,7 +131,7 @@ pub struct ColliderPlugin;
 impl Plugin for ColliderPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<CollisionEvents>()
-            .add_systems(Update, detect_collisions);
+            .add_systems(Update, detect_collisions.in_set(UpdateSet::InGame));
     }
 }
 

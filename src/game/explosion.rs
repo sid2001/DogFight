@@ -1,5 +1,7 @@
+use super::camera::REAR_VIEW_LAYERS;
 use super::spaceship::SpaceShip;
 use super::swarm::*;
+use crate::sets::*;
 use bevy::render::primitives::Aabb;
 use bevy::{
     core_pipeline::bloom::Bloom, gizmos::aabb, prelude::*, render::texture::FallbackImage,
@@ -45,7 +47,12 @@ impl Plugin for ExplosionPlugin {
         app.insert_resource(RunOnce(false))
             .add_event::<ExplosionEvent>()
             // .add_systems(Update, setup.run_if(resource_equals(RunOnce(false))))
-            .add_systems(Update, (explode, animate_explosion).chain());
+            .add_systems(
+                Update,
+                (explode, animate_explosion)
+                    .chain()
+                    .in_set(UpdateSet::InGame),
+            );
     }
 }
 
@@ -70,16 +77,14 @@ fn explode(
             .mesh()
             .uv(32, 18),
         );
-        // commands.entity(ev.entity).with_child((
-        // if let Ok(trans) = query.get(ev.entity) {
-        // info!("explo: {:?} {:?}", trans.translation, trans.scale);
+
         commands.spawn((
             Mesh3d(sphere.clone()),
             ExplosionMarker,
             ev.explosion,
             ev.transform,
             MeshMaterial3d(materials.add(StandardMaterial {
-                emissive: LinearRgba::rgb(0.004, 0.012, 0.036),
+                emissive: LinearRgba::BLACK,
                 ..default()
             })),
         ));

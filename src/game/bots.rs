@@ -1,8 +1,10 @@
+use super::camera::REAR_VIEW_LAYERS;
 use bevy::utils::info;
 use bevy::{math::VectorSpace, prelude::*};
 
 use super::turret::*;
 use crate::asset_loader::*;
+use crate::sets::*;
 
 use crate::asset_loader::SceneAssets;
 
@@ -109,9 +111,19 @@ pub struct BotPlugin;
 impl Plugin for BotPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(BotCount(0))
-            .add_systems(Startup, spawn_bot)
-            .add_systems(Update, (thrust_control, chase_target).chain())
-            .add_systems(Update, (shoot_target, shoot_turret::<BotTurret>).chain());
+            // .add_systems(Startup, setup)
+            .add_systems(
+                Update,
+                (thrust_control, chase_target)
+                    .chain()
+                    .in_set(UpdateSet::InGame),
+            )
+            .add_systems(
+                Update,
+                (shoot_target, shoot_turret::<BotTurret>)
+                    .chain()
+                    .in_set(UpdateSet::InGame),
+            );
     }
 }
 
@@ -249,7 +261,7 @@ fn shoot_target(
     }
 }
 
-fn spawn_bot(
+pub fn setup(
     mut commands: Commands,
     scene_asset: Res<SceneAssets>,
     audio_assets: Res<AudioAssets>,
@@ -266,6 +278,7 @@ fn spawn_bot(
             },
             BotState::Chasing,
             BotMarker,
+            REAR_VIEW_LAYERS,
             AudioPlayer(audio_assets.throttle_up.clone()),
             PlaybackSettings::LOOP.with_spatial(true),
             Transform::from_xyz(0., 20., 20.).with_scale(Vec3::new(0.5, 0.5, 0.5)), // .looking_at(Vec3::Y, Vec3::Z), // .with_rotation(Quat::from_rotation_y(std::f32::consts::PI)),
@@ -310,6 +323,7 @@ fn spawn_bot(
                 spatial: true,
                 ..default()
             },
+            REAR_VIEW_LAYERS,
             BotState::Chasing,
             BotMarker,
             Transform::from_xyz(20., 30., 40.).with_scale(Vec3::new(0.5, 0.5, 0.5)), // .looking_at(Vec3::Y, Vec3::Z), // .with_rotation(Quat::from_rotation_y(std::f32::consts::PI)),
@@ -354,6 +368,7 @@ fn spawn_bot(
                 spatial: true,
                 ..default()
             },
+            REAR_VIEW_LAYERS,
             BotState::Chasing,
             BotMarker,
             Transform::from_xyz(0., 0., 0.).with_scale(Vec3::new(0.5, 0.5, 0.5)), // .looking_at(Vec3::Y, Vec3::Z), // .with_rotation(Quat::from_rotation_y(std::f32::consts::PI)),
@@ -400,6 +415,7 @@ fn spawn_bot(
             },
             BotState::Chasing,
             BotMarker,
+            REAR_VIEW_LAYERS,
             Transform::from_xyz(30., 70., 0.).with_scale(Vec3::new(0.5, 0.5, 0.5)), // .looking_at(Vec3::Y, Vec3::Z), // .with_rotation(Quat::from_rotation_y(std::f32::consts::PI)),
         ))
         .with_children(|parent| {

@@ -3,6 +3,7 @@ use std::time::Duration;
 
 use super::collider::*;
 use super::spaceship::SpaceShip;
+use crate::sets::*;
 use bevy::prelude::*;
 
 const DEFAULT_BULLET_RANGE: f32 = 20.;
@@ -88,9 +89,9 @@ impl Plugin for TurretPlugin {
                 TimerMode::Repeating,
             )))
             .insert_resource(BulletScenePath(self.bullet_scene_path.clone()))
-            .add_systems(Startup, load_bullet)
+            .add_systems(Startup, setup)
             // .add_systems(Update, shoot_turret)
-            .add_systems(Update, bullet_travel);
+            .add_systems(Update, bullet_travel.in_set(UpdateSet::InGame));
     }
 }
 
@@ -115,7 +116,7 @@ fn bullet_travel(
     }
 }
 
-fn load_bullet(
+pub fn setup(
     asset_server: Res<AssetServer>,
     path: Res<BulletScenePath>,
     mut bullet: ResMut<TurretBullet>,
@@ -131,6 +132,7 @@ pub fn shoot_turret<T: Component>(
     bullet: Res<TurretBullet>,
     mut timer: ResMut<FireRateTimer>,
     time: Res<Time>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     for (tur, gt) in query.iter_mut() {
         match tur.0.shooting {
@@ -148,6 +150,10 @@ pub fn shoot_turret<T: Component>(
                             velocity: tur.0.bullet_inertial_velocity,
                             distance_covered: 0.,
                         },
+                        MeshMaterial3d(materials.add(StandardMaterial {
+                            emissive: LinearRgba::rgb(5.32, 2.0, 13.99),
+                            ..default()
+                        })),
                         ColliderMarker,
                         ColliderInfo {
                             collider_type: ColliderType::Point,

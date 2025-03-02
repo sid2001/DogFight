@@ -1,7 +1,9 @@
 use super::bots::{Bot, BotMarker, BotMotion, BotState, BotTurret};
+use super::camera::REAR_VIEW_LAYERS;
 use super::spaceship::*;
 use super::turret::*;
 use crate::asset_loader::*;
+use crate::sets::*;
 use bevy::audio::{PlaybackMode::*, Volume};
 use bevy::math::VectorSpace;
 use bevy::prelude::*;
@@ -24,8 +26,13 @@ impl Plugin for DebugPlugin {
             Duration::from_secs_f32(1.),
             TimerMode::Repeating,
         )))
-        .add_systems(Startup, spawn_planet)
-        .add_systems(Update, (detect_obstacle, avoid_obstacle).chain());
+        // .add_systems(Startup, setup)
+        .add_systems(
+            Update,
+            (detect_obstacle, avoid_obstacle)
+                .chain()
+                .in_set(UpdateSet::InGame),
+        );
         // .add_systems(PostStartup, mark_spaceship);
     }
 }
@@ -73,11 +80,11 @@ fn avoid_obstacle(
                 motion.last_dir = None;
                 let t_vec = p_trans.translation.clone() - trans.translation.clone();
                 let rot_axis: Vec3;
-                info!(
-                    "nearest obs {} tv {}",
-                    motion.nearest_obstacle.0,
-                    t_vec.clone().length()
-                );
+                // info!(
+                //     "nearest obs {} tv {}",
+                //     motion.nearest_obstacle.0,
+                //     t_vec.clone().length()
+                // );
                 if motion.nearest_obstacle.0 >= t_vec.clone().length() {
                     rot_axis = motion
                         .direction
@@ -111,7 +118,7 @@ fn avoid_obstacle(
                 // trans.translation += motion.velocity.clone() * t;
                 // motion.drag = -velocity.clone() * 2.;
                 if timer.0.tick(time.delta()).just_finished() {
-                    info!("Velocityy bot {}", motion.velocity.length());
+                    // info!("Velocityy bot {}", motion.velocity.length());
                 }
             }
             BotState::Ideal => {
@@ -166,14 +173,14 @@ fn detect_obstacle(
             // calculating perpendicular distance from centre of the planet
             // |(r1 - r2) X n^|
             let per_dist = ((p_pos.clone() - b_pos.clone()).cross(b_dir.clone())).length();
-            info!("perd {} rad {}", per_dist, rad);
+            // info!("perd {} rad {}", per_dist, rad);
             if per_dist >= rad {
                 continue;
             } else {
                 let r1 = (b_pos - p_pos).normalize_or_zero();
                 let costh = r1.clone().dot(vel.clone().normalize_or_zero());
                 // when bot is moving away from the planet
-                info!("costh {}", costh.clone());
+                // info!("costh {}", costh.clone());
                 if costh >= 0. {
                     continue;
                 } else {
@@ -246,12 +253,13 @@ fn spawn_bot(
         });
 }
 
-fn spawn_planet(mut commands: Commands, scene_asset: Res<SceneAssets>) {
+fn setup(mut commands: Commands, scene_asset: Res<SceneAssets>) {
     commands.spawn((
         SceneRoot(scene_asset.planet1.clone()),
         Transform::from_xyz(0., 0., 0.),
         PlanetMarker,
         PlanetRadius(2.),
+        REAR_VIEW_LAYERS,
     ));
     commands.spawn((
         SceneRoot(scene_asset.planet1.clone()),
@@ -276,7 +284,7 @@ fn print_position(
     let trans = query.single();
     let mut state = bot_query.single_mut();
     if timer.0.tick(time.delta()).just_finished() {
-        info!("{}", trans.translation);
+        // info!("{}", trans.translation);
         // *state = BotState::Chasing;
     }
 }

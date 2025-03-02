@@ -1,6 +1,7 @@
 use super::collider::*;
 use super::explosion::{ExplosibleObjectMarker, *};
 use crate::asset_loader::SceneAssets;
+use crate::sets::*;
 use bevy::prelude::*;
 use rand::Rng;
 use std::collections::HashMap;
@@ -168,7 +169,7 @@ impl Default for SwarmBot {
             avoid_dir_vector: Dir3::Y,
             thrust: 1.,
             thrust_limit: 10.,
-            angular_velocity: 200.,
+            angular_velocity: 100.,
             drag: Vec3::ZERO,
             velocity: Vec3::ZERO,
             in_swarm: false,
@@ -221,14 +222,15 @@ pub struct SwarmPlugin;
 impl Plugin for SwarmPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(SwarmTracker(HashMap::new(), SwarmIdPool::default()))
-            .add_systems(Startup, setup)
-            .add_systems(Update, release_bots)
+            // .add_systems(Startup, setup)
+            .add_systems(Update, release_bots.in_set(UpdateSet::InGame))
             .add_systems(
                 Update,
                 (
                     detect_target,
                     thrust_control,
                     swarm_up,
+                    coerce,
                     avoidance,
                     steer,
                     accelerate,
@@ -236,12 +238,13 @@ impl Plugin for SwarmPlugin {
                     collision_response,
                     despawn_swarm_bots,
                 )
-                    .chain(),
+                    .chain()
+                    .in_set(UpdateSet::InGame),
             );
     }
 }
 
-fn setup(mut commands: Commands, scene_assets: Res<SceneAssets>) {
+pub fn setup(mut commands: Commands, scene_assets: Res<SceneAssets>) {
     let swarm = SwarmPoint::default();
     let origin = swarm.xyz();
     let transform =
@@ -499,8 +502,8 @@ pub fn despawn_swarm_bots(
     mut commands: Commands,
     mut swarm_tracker: ResMut<SwarmTracker>,
 ) {
-    let swarm_map = &mut swarm_tracker.0;
-    let id_pool = &swarm_tracker.1;
+    // let swarm_map = &mut swarm_tracker.0;
+    // let id_pool = &swarm_tracker.1;
     for (ent, s_bot) in query.iter() {
         // info!("despawn {}", s_bot.health);
         if !s_bot.is_alive {
@@ -526,6 +529,25 @@ pub fn despawn_swarm_bots(
             }
             // delete from swarm tracker
             swarm_tracker.0.remove(&ent);
+        }
+    }
+}
+
+fn coerce(
+    mut query: Query<(Entity, &Transform, &mut SwarmBot), With<SwarmBotMarker>>,
+    swarm_tracker: Res<SwarmTracker>,
+    time: Res<Time>,
+) {
+    let mut bot_query = query.iter_combinations_mut();
+    while let Some([(e1, t1, mut sb1), (e2, t2, sb2)]) = bot_query.fetch_next() {
+        if let Some(leader) = swarm_tracker.0.get(&e1).unwrap().leader {
+            if leader == e2 {
+                let dir = t2.translation - t1.translation;
+                let diff = dir.length();
+                if diff > sb1.swarm_spacing_max {
+                    sb1.velocity = sb1.velocity + (0.3 * dir.normalize() * time.delta_secs());
+                }
+            }
         }
     }
 }
@@ -590,10 +612,11 @@ fn swarm_up(
                             swarm_tracker.0.entry(e2.clone()).and_modify(|d| {
                                 d.followers += 1;
                                 if d.state == SwarmBotState::Solo {
-                                    d.state = SwarmBotState::InSwarm;
+                                    // d.state = SwarmBotState::InSwarm;
                                     d.swarm_id = swarm_id;
                                     d.leader = Some(e2.clone());
                                 }
+                                d.state = SwarmBotState::InSwarm;
                             });
 
                             // info!("{} swarming with {}", e1.to_bits(), e2.to_bits());
@@ -663,10 +686,19 @@ fn swarm_up(
                         }
                         // replace this with coerce logic
                         if (t2.translation - t1.translation).length() > b1.swarm_spacing_max {
-                            swarm_tracker.0.get_mut(&e1).unwrap().state = SwarmBotState::Swarming;
+                            if let Some(sd) = swarm_tracker.0.clone().get_mut(&e1) {
+                                if sd.followers == 0 {
+                                    swarm_tracker.0.get_mut(&e1).unwrap().state =
+                                        SwarmBotState::Solo;
+                                    swarm_tracker.0.get_mut(&e1).unwrap().leader = None;
+                                    swarm_tracker.1.unit_dec_subs(sd.swarm_id as usize);
+                                } else {
+                                    swarm_tracker.0.get_mut(&e1).unwrap().leader = Some(e1);
+                                }
+                            }
                             continue;
                         }
-                        b1.thrust = b2.thrust;
+                        // b1.thrust = b2.thrust;
                         b1.target_dir = b2.dir;
                     } else {
                         if let Some(sd) = swarm_tracker.0.clone().get_mut(&e1) {

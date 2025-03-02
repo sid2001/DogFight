@@ -124,7 +124,7 @@
     ],
     "meshes": [
         {
-            "name": "meshes[0]",
+            "name": "BotMesh",
             "primitives": [
                 {
                     "mode": 4,

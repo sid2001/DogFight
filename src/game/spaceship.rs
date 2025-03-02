@@ -63,33 +63,34 @@ pub struct SpaceShipPlugin;
 
 impl Plugin for SpaceShipPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            Startup,
-            spawn_spaceship
-                .in_set(SetupSet::InGame(InGameSet::SpaceShip))
-                .run_if(in_state(GameState::InGame(InGameStates::Play))),
-        )
-        .add_systems(
-            Update,
-            (
-                collision_response,
-                spaceship_controls
-                    .in_set(InputSet::InGame(ControlsSet::InGame(InGameSet::SpaceShip))),
-                accelerate_spaceship,
-                move_spaceship,
-                spaceship_orientation,
-                // adjust_drag,
+        app
+            // .add_systems(
+            //     Startup,
+            //     setup
+            //         .in_set(SetupSet::InGame(InGameSet::SpaceShip))
+            //         .run_if(in_state(GameState::InGame(InGameStates::Play))),
+            // )
+            .add_systems(
+                Update,
+                (
+                    collision_response,
+                    spaceship_controls
+                        .in_set(InputSet::InGame(ControlsSet::InGame(InGameSet::SpaceShip))),
+                    accelerate_spaceship,
+                    move_spaceship,
+                    spaceship_orientation,
+                    // adjust_drag,
+                )
+                    .after(SetupSet::InGame)
+                    .chain()
+                    .in_set(UpdateSet::InGame), // .run_if(in_state(GameState::InGame(InGameStates::Play))), // .after(SetupSet::InGame(InGameSet::SpaceShip)),
             )
-                .chain()
-                .in_set(UpdateSet::InGame(InGameSet::SpaceShip))
-                .run_if(in_state(GameState::InGame(InGameStates::Play))), // .after(SetupSet::InGame(InGameSet::SpaceShip)),
-        )
-        .add_systems(
-            Update,
-            shoot_turret::<SpaceShipTurret>
-                // .after(InputSet::InGame(Controls::InGame(InGameSet::SpaceShip)))
-                .after(UpdateSet::InGame(InGameSet::SpaceShip)),
-        );
+            .add_systems(
+                Update,
+                shoot_turret::<SpaceShipTurret>
+                    // .after(InputSet::InGame(Controls::InGame(InGameSet::SpaceShip)))
+                    .after(UpdateSet::InGame),
+            );
     }
 }
 
@@ -287,7 +288,7 @@ fn collision_response(
     }
 }
 
-pub fn spawn_spaceship(
+pub fn setup(
     mut commands: Commands,
     scene_assets: Res<SceneAssets>,
     audio_assets: Res<AudioAssets>,
