@@ -18,6 +18,10 @@ pub struct Controls {
     pub align_camera: Option<KeyCode>,
     pub steer_boost: Option<KeyCode>,
     pub camera_view: Option<KeyCode>,
+    pub toggle_rear_view: Option<KeyCode>,
+    pub missile_switch: Option<KeyCode>,
+    pub missile_aim: Option<KeyCode>,
+    pub missile_shoot: Option<KeyCode>,
 }
 
 impl Default for Controls {
@@ -39,26 +43,13 @@ impl Default for Controls {
             align_camera: Some(KeyCode::AltRight),
             steer_boost: Some(KeyCode::ShiftLeft),
             camera_view: Some(KeyCode::KeyV),
+            toggle_rear_view: Some(KeyCode::KeyC),
+            missile_switch: Some(KeyCode::KeyP),
+            missile_aim: Some(KeyCode::KeyO),
+            missile_shoot: Some(KeyCode::KeyI),
         }
     }
 }
-
-// pub enum ControlState {
-//     Thrust,
-//     BackThrust,
-//     Brake,
-//     Up,
-//     Down,
-//     RollL,
-//     RollR,
-//     Shoot,
-//     ToggleFreelook,
-//     CameraUp,
-//     CameraDown,
-//     CameraL,
-//     CameraR,
-//     AlignCamera
-// }
 
 pub struct ControlPlugin;
 impl Plugin for ControlPlugin {

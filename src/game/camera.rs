@@ -1,10 +1,25 @@
 use super::movement::{Direction, Inertia};
 use super::spaceship::{Entities, SpaceShip};
+use super::GameObjectMarker;
 use crate::controls::Controls;
-use bevy::math::VectorSpace;
+use crate::sets::*;
+use bevy::core_pipeline::bloom::Bloom;
+use bevy::core_pipeline::core_3d::ScreenSpaceTransmissionQuality;
+use bevy::image::ImageSampler;
+use bevy::render::camera::Viewport;
+use bevy::render::camera::{RenderTarget, ScalingMode};
+use bevy::render::view::RenderLayers;
+// use bevy::render::render_resource::{
+//     Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
+// };
 use bevy::{pbr::*, prelude::*};
+use core::ops::Range;
+use std::f32::consts::PI;
+
+// use bevy_core_pipeline::core_3d::graph::Core3d;
 
 const DEFAULT_ANGULAR_SPEED: f32 = 100.;
+pub const REAR_VIEW_LAYERS: RenderLayers = RenderLayers::layer(1);
 
 #[derive(Component)]
 pub struct MyCameraMarker;
@@ -25,7 +40,11 @@ impl Default for ViewMode {
 pub struct CameraMode {
     pub freelook: bool,
     pub view_mode: ViewMode,
+    pub toggle_rear_view: bool,
 }
+
+#[derive(Component)]
+pub struct RearCameraMarker;
 
 #[derive(Bundle)]
 pub struct MyCameraBundle {
@@ -40,16 +59,21 @@ pub struct CameraPlugin;
 
 impl Plugin for CameraPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, setup_camera)
-            .add_systems(Update, (follow_spaceship, camera_view));
+        app.insert_resource(FrameCounter { frame: 0 })
+            // .add_systems(Startup, setup)
+            .add_systems(
+                Update,
+                (follow_spaceship, camera_view, insert_render_layer).in_set(UpdateSet::InGame),
+            );
     }
 }
 
-pub fn setup_camera(
+pub fn setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut entities: ResMut<Entities>,
+    mut images: ResMut<Assets<Image>>,
 ) {
     commands.spawn((
         DirectionalLight {
@@ -58,8 +82,11 @@ pub fn setup_camera(
             shadows_enabled: true,             // Enable shadows
             ..default()
         },
+        GameObjectMarker,
+        // RenderLayers::layer(0).with(1),
         Transform::from_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_4)), // 45° angle
     ));
+
     commands.spawn((
         Mesh3d(meshes.add(Cuboid::new(100.0, 100.0, 100.0))),
         MeshMaterial3d(materials.add(StandardMaterial {
@@ -68,6 +95,7 @@ pub fn setup_camera(
             cull_mode: None,
             ..default()
         })),
+        GameObjectMarker,
         Transform::from_scale(Vec3::splat(20.0)),
         NotShadowCaster,
     ));
@@ -87,12 +115,15 @@ pub fn setup_camera(
                         ..default()
                     },
                 },
+                GameObjectMarker,
+                Bloom::NATURAL,
+                RenderLayers::layer(0).with(1),
                 DistanceFog {
-                    color: Color::srgba(0.35, 0.48, 0.66, 0.2),
+                    color: Color::srgba(0.06452, 0.01285, 0.12332, 0.9),
                     directional_light_color: Color::srgba(1.0, 0.95, 0.85, 1.),
                     directional_light_exponent: 60.0,
                     falloff: FogFalloff::from_visibility_colors(
-                        0.007, // distance in world units up to which objects retain visibility (>= 5% contrast)
+                        1., // distance in world units up to which objects retain visibility (>= 5% contrast)
                         Color::srgb(0.92, 0.91, 0.92), // atmospheric extinction color (after light is lost due to absorption by atmospheric particles)
                         Color::srgb(0.246, 0.245, 0.251), // atmospheric inscattering color (light gained due to scattering from the sun)
                     ),
@@ -101,6 +132,66 @@ pub fn setup_camera(
             ))
             .id(),
     );
+
+    let rear_camera = commands
+        .spawn((
+            Camera3d {
+                screen_space_specular_transmission_quality: ScreenSpaceTransmissionQuality::Low,
+                screen_space_specular_transmission_steps: 0,
+                ..default()
+            },
+            Projection::Perspective(PerspectiveProjection {
+                fov: PI / 6.,
+                far: 30.,
+                ..Default::default()
+            }),
+            GameObjectMarker,
+            // Projection::Orthographic(OrthographicProjection {
+            //     scale: 0.07,
+            //     near: 0.0,
+            //     far: 30.,
+            //     ..OrthographicProjection::default_3d()
+            // }),
+            Transform::from_translation(Vec3::ZERO).looking_at(Vec3::ZERO, Vec3::Y),
+            Camera {
+                // Renders cameras with different priorities to prevent ambiguities
+                order: 2,
+                // target: RenderTarget::Image(image_handle),
+                viewport: Some(Viewport {
+                    physical_position: UVec2::new(0, 0),
+                    physical_size: UVec2::new(400, 200),
+                    // depth: Range {
+                    //     start: 0.0,
+                    //     end: 0.5,
+                    // },
+                    ..default()
+                }),
+                is_active: false,
+                ..default()
+            },
+            RearCameraMarker,
+            REAR_VIEW_LAYERS,
+        ))
+        .id();
+
+    // commands.spawn(image);
+    // commands.spawn((
+    //     TargetCamera(rear_camera),
+    //     Node {
+    //         width: Val::Percent(100.),
+    //         height: Val::Percent(100.),
+    //         position_type: PositionType::Absolute,
+    //         border: UiRect::all(Val::Px(2.)),
+    //         ..default()
+    //     },
+    //     BackgroundColor(Color::LinearRgba(LinearRgba {
+    //         red: 0.,
+    //         green: 1.,
+    //         blue: 0.,
+    //         alpha: 0.1,
+    //     })),
+    //     BorderRadius::all(Val::Percent(5.)),
+    // ));
 }
 
 fn follow_spaceship(
@@ -108,6 +199,14 @@ fn follow_spaceship(
     mut sp_query: Query<
         (&Transform, &mut Direction, &Inertia),
         (With<SpaceShip>, Without<MyCameraMarker>),
+    >,
+    mut rc_query: Query<
+        &mut Transform,
+        (
+            With<RearCameraMarker>,
+            Without<MyCameraMarker>,
+            Without<SpaceShip>,
+        ),
     >,
     entity: Res<Entities>,
     time: Res<Time>,
@@ -152,7 +251,6 @@ fn follow_spaceship(
     //     .cross(sp_dir.0)
     //     .normalize_or_zero();
     // let angle = camera.forward().as_vec3().clone().angle_between(sp_dir.0);
-
     // rotation = Quat::from_axis_angle(rot_axis, angle.to_radians() * time.delta_secs() * 10.);
     //* this is a correct method but give camera it's own coordinate plane axes
     //* let angle = (sp_dir
@@ -175,11 +273,18 @@ fn follow_spaceship(
         );
         camera.rotate(rot);
     }
+    if let Ok(mut rc_trans) = rc_query.get_single_mut() {
+        *rc_trans = Transform::from_translation(camera.translation)
+            .with_rotation(camera.rotation)
+            .looking_to(-camera.forward(), Vec3::Y)
+        // .with_rotation(camera.rotation);
+    }
 }
 
 fn camera_view(
     mut query: Query<(&mut Transform, &mut CameraMode), (With<MyCameraMarker>, Without<SpaceShip>)>,
     mut sp_query: Query<(&Transform, &mut Visibility), With<SpaceShip>>,
+    mut rc_query: Query<&mut Camera, With<RearCameraMarker>>,
     keys: Res<ButtonInput<KeyCode>>,
     controls: Res<Controls>,
     time: Res<Time>,
@@ -197,6 +302,19 @@ fn camera_view(
                 ViewMode::ThirdPerson2(_) => {
                     *sp_visibility = Visibility::Hidden;
                     ViewMode::FirstPerson((0.2, 0.))
+                }
+            }
+        }
+
+        if keys.just_pressed(controls.toggle_rear_view.unwrap()) {
+            camera_mode.toggle_rear_view = !camera_mode.toggle_rear_view;
+            if camera_mode.toggle_rear_view {
+                if let Ok(mut rear_cam) = rc_query.get_single_mut() {
+                    rear_cam.is_active = true;
+                }
+            } else {
+                if let Ok(mut rear_cam) = rc_query.get_single_mut() {
+                    rear_cam.is_active = false;
                 }
             }
         }
@@ -248,6 +366,34 @@ fn camera_view(
                     DEFAULT_ANGULAR_SPEED.to_radians().clone() * time.delta_secs(),
                 );
             }
+        }
+    }
+}
+
+#[derive(Resource)]
+struct FrameCounter {
+    frame: usize,
+}
+
+fn rear_view_frame_limit(
+    mut query: Query<&mut Camera, With<RearCameraMarker>>,
+    mut frame_counter: ResMut<FrameCounter>,
+) {
+    frame_counter.frame += 1;
+    let render_now = frame_counter.frame % 3 == 0; // Update every 10 frames
+
+    for mut cam in query.iter_mut() {
+        cam.is_active = render_now;
+    }
+}
+
+fn insert_render_layer(
+    query: Query<(Entity, &Name), Without<RenderLayers>>,
+    mut commands: Commands,
+) {
+    for (ent, name) in query.iter() {
+        if name.to_string() == "BotMesh" {
+            commands.entity(ent).insert(REAR_VIEW_LAYERS);
         }
     }
 }
