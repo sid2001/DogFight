@@ -14,6 +14,8 @@ pub struct SceneAssets {
     pub terrain: Handle<Scene>,
     pub mes: Handle<Mesh>,
     pub swarm_point: Handle<Scene>,
+    pub missile: Handle<Scene>,
+    pub missile2: Handle<Scene>,
 }
 
 #[derive(Resource, Debug, Default)]
@@ -21,6 +23,8 @@ pub struct AudioAssets {
     pub throttle_up: Handle<AudioSource>,
     pub engine_humming: Handle<AudioSource>,
     pub laser_turret: Handle<AudioSource>,
+    pub homing_launch: Handle<AudioSource>,
+    pub homing_cruise: Handle<AudioSource>,
 }
 
 #[derive(Resource, Debug, Default)]
@@ -66,6 +70,8 @@ fn load_scene_assets(mut scene_assets: ResMut<SceneAssets>, asset_server: Res<As
         terrain: asset_server.load("terrain/lowpolylandscape.glb#Scene0"),
         swarm_point: asset_server.load("Planet-18Uxrb2dIc.glb#Scene0"),
         mes: asset_server.load(GltfAssetLabel::Scene(0).from_asset("Spaceship.gltf")),
+        missile: asset_server.load("missile.glb#Scene0"),
+        missile2: asset_server.load("missile2.glb#Scene0"),
     };
 }
 
@@ -74,6 +80,8 @@ fn load_audio_assets(mut audio_assets: ResMut<AudioAssets>, asset_server: Res<As
         throttle_up: asset_server.load("sounds/thrusters.ogg"),
         engine_humming: asset_server.load("sounds/ambient-spacecraft-hum-33119.ogg"),
         laser_turret: asset_server.load("sounds/laserturret.ogg"),
+        homing_cruise: asset_server.load("sounds/homing_cruise.ogg"),
+        homing_launch: asset_server.load("sounds/homing_launch.ogg"),
     }
 }
 

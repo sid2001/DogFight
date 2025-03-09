@@ -1,5 +1,5 @@
-use super::collider::*;
 use super::explosion::{ExplosibleObjectMarker, *};
+use super::{collider::*, GameObjectMarker};
 use crate::asset_loader::SceneAssets;
 use crate::sets::*;
 use bevy::prelude::*;
@@ -250,16 +250,18 @@ pub fn setup(mut commands: Commands, scene_assets: Res<SceneAssets>) {
     let transform =
         Transform::from_xyz(origin.x, origin.y, origin.z).with_scale(Vec3::new(0.5, 0.5, 0.5));
     let scene = SceneRoot(scene_assets.swarm_point.clone());
-    commands.spawn((swarm, transform, scene, SwarmPointMarker));
+    commands.spawn((swarm, transform, scene, SwarmPointMarker, GameObjectMarker));
     commands.spawn((
         SceneRoot(scene_assets.map_marker.clone()),
         Transform::from_xyz(-4., 4., -6.).with_scale(Vec3::new(0.05, 0.05, 0.05)),
         SwarmTarget,
+        GameObjectMarker,
     ));
     commands.spawn((
         SceneRoot(scene_assets.map_marker.clone()),
         Transform::from_xyz(4., 4., -6.).with_scale(Vec3::new(0.05, 0.05, 0.05)),
         SwarmTarget,
+        GameObjectMarker,
     ));
 }
 
@@ -327,6 +329,7 @@ fn release_bots(
                             center: Vec3::ZERO,
                         })),
                     },
+                    GameObjectMarker,
                 ))
                 .id();
             swarm_tracker.0.insert(entity, SwarmData::default());

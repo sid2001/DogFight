@@ -1,8 +1,8 @@
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
-use super::collider::*;
 use super::spaceship::SpaceShip;
+use super::{collider::*, GameObjectMarker};
 use crate::sets::*;
 use bevy::prelude::*;
 
@@ -139,6 +139,7 @@ pub fn shoot_turret<T: Component>(
             true => {
                 if timer.0.tick(time.delta()).just_finished() {
                     commands.spawn((
+                        GameObjectMarker,
                         SceneRoot(bullet.handle.clone()),
                         Transform::from_translation(gt.translation().clone())
                             .with_scale(Vec3::ONE * tur.0.bullet_size.clone())

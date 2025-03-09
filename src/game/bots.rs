@@ -1,8 +1,9 @@
 use super::camera::REAR_VIEW_LAYERS;
+use super::missile::HomingMissileTarget;
 use bevy::utils::info;
 use bevy::{math::VectorSpace, prelude::*};
 
-use super::turret::*;
+use super::{turret::*, GameObjectMarker};
 use crate::asset_loader::*;
 use crate::sets::*;
 
@@ -279,6 +280,8 @@ pub fn setup(
             BotState::Chasing,
             BotMarker,
             REAR_VIEW_LAYERS,
+            GameObjectMarker,
+            HomingMissileTarget,
             AudioPlayer(audio_assets.throttle_up.clone()),
             PlaybackSettings::LOOP.with_spatial(true),
             Transform::from_xyz(0., 20., 20.).with_scale(Vec3::new(0.5, 0.5, 0.5)), // .looking_at(Vec3::Y, Vec3::Z), // .with_rotation(Quat::from_rotation_y(std::f32::consts::PI)),
@@ -324,6 +327,8 @@ pub fn setup(
                 ..default()
             },
             REAR_VIEW_LAYERS,
+            GameObjectMarker,
+            HomingMissileTarget,
             BotState::Chasing,
             BotMarker,
             Transform::from_xyz(20., 30., 40.).with_scale(Vec3::new(0.5, 0.5, 0.5)), // .looking_at(Vec3::Y, Vec3::Z), // .with_rotation(Quat::from_rotation_y(std::f32::consts::PI)),
@@ -369,7 +374,9 @@ pub fn setup(
                 ..default()
             },
             REAR_VIEW_LAYERS,
+            GameObjectMarker,
             BotState::Chasing,
+            HomingMissileTarget,
             BotMarker,
             Transform::from_xyz(0., 0., 0.).with_scale(Vec3::new(0.5, 0.5, 0.5)), // .looking_at(Vec3::Y, Vec3::Z), // .with_rotation(Quat::from_rotation_y(std::f32::consts::PI)),
         ))
@@ -413,9 +420,11 @@ pub fn setup(
                 spatial: true,
                 ..default()
             },
+            HomingMissileTarget,
             BotState::Chasing,
             BotMarker,
             REAR_VIEW_LAYERS,
+            GameObjectMarker,
             Transform::from_xyz(30., 70., 0.).with_scale(Vec3::new(0.5, 0.5, 0.5)), // .looking_at(Vec3::Y, Vec3::Z), // .with_rotation(Quat::from_rotation_y(std::f32::consts::PI)),
         ))
         .with_children(|parent| {

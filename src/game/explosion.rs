@@ -1,6 +1,6 @@
 use super::camera::REAR_VIEW_LAYERS;
 use super::spaceship::SpaceShip;
-use super::swarm::*;
+use super::{swarm::*, GameObjectMarker};
 use crate::sets::*;
 use bevy::render::primitives::Aabb;
 use bevy::{
@@ -87,6 +87,7 @@ fn explode(
                 emissive: LinearRgba::BLACK,
                 ..default()
             })),
+            GameObjectMarker,
         ));
         // }
     }

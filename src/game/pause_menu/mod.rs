@@ -1,8 +1,8 @@
-use crate::states::{GameState, InGameStates};
+use crate::states::{GameState, InGameStates, MenuState};
 use crate::{asset_loader::MenuAssets, sets::*};
 use bevy::prelude::*;
+use bevy::render::view::RenderLayers;
 use bevy::ui::widget::NodeImageMode;
-use bevy_inspector_egui::egui::Order;
 
 pub struct PauseMenuPlugin;
 impl Plugin for PauseMenuPlugin {
@@ -19,7 +19,7 @@ impl Plugin for PauseMenuPlugin {
         )
         .add_systems(
             Update,
-            pause_menu_action
+            (pause_menu_action, button_hover)
                 .run_if(in_state(InGameStates::Paused))
                 .run_if(in_state(GameState::Game)),
         );
@@ -177,6 +177,7 @@ fn pause_menu_action(
     >,
     mut in_game_state: ResMut<NextState<InGameStates>>,
     mut game_state: ResMut<NextState<GameState>>,
+    // mut menu_state: ResMut<NextState<MenuState>>,
 ) {
     for (interaction, menu_action) in interaction_query.iter() {
         match (*interaction, menu_action) {
@@ -185,8 +186,31 @@ fn pause_menu_action(
             }
             (Interaction::Pressed, Some(PauseMenuAction::Exit)) => {
                 game_state.set(GameState::Menu);
+                in_game_state.set(InGameStates::Quit);
+                // menu_state.set(MenuState::Loading);
             }
             _ => (),
+        }
+    }
+}
+
+const PRESSED_BUTTON_COLOR: Color = Color::srgba(1.07433, 0.77008, -0.30753, 0.5);
+const HOVERED_BUTTON_COLOR: Color = Color::srgba(1.07433, 0.77008, -0.30753, 1.0);
+const NORMAL_BUTTON_COLOR: Color = Color::WHITE;
+
+fn button_hover(
+    mut interaction_query: Query<
+        (&Interaction, &mut ImageNode),
+        (Changed<Interaction>, With<Button>),
+    >,
+) {
+    for (interaction, mut image_node) in &mut interaction_query {
+        image_node.color = match interaction {
+            Interaction::Pressed => PRESSED_BUTTON_COLOR,
+            Interaction::Hovered => HOVERED_BUTTON_COLOR,
+            // (Interaction::Hovered, None) => HOVERED_BUTTON.into(),
+            Interaction::None => NORMAL_BUTTON_COLOR,
+            // _ => NORMAL_BUTTON_COLOR,
         }
     }
 }

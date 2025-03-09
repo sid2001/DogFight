@@ -1,5 +1,6 @@
 use super::movement::{Direction, Inertia};
 use super::spaceship::{Entities, SpaceShip};
+use super::GameObjectMarker;
 use crate::controls::Controls;
 use crate::sets::*;
 use bevy::core_pipeline::bloom::Bloom;
@@ -81,6 +82,7 @@ pub fn setup(
             shadows_enabled: true,             // Enable shadows
             ..default()
         },
+        GameObjectMarker,
         // RenderLayers::layer(0).with(1),
         Transform::from_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_4)), // 45° angle
     ));
@@ -93,6 +95,7 @@ pub fn setup(
             cull_mode: None,
             ..default()
         })),
+        GameObjectMarker,
         Transform::from_scale(Vec3::splat(20.0)),
         NotShadowCaster,
     ));
@@ -112,14 +115,15 @@ pub fn setup(
                         ..default()
                     },
                 },
+                GameObjectMarker,
                 Bloom::NATURAL,
                 RenderLayers::layer(0).with(1),
                 DistanceFog {
-                    color: Color::srgba(0.35, 0.48, 0.66, 0.2),
+                    color: Color::srgba(0.06452, 0.01285, 0.12332, 0.9),
                     directional_light_color: Color::srgba(1.0, 0.95, 0.85, 1.),
                     directional_light_exponent: 60.0,
                     falloff: FogFalloff::from_visibility_colors(
-                        0.007, // distance in world units up to which objects retain visibility (>= 5% contrast)
+                        1., // distance in world units up to which objects retain visibility (>= 5% contrast)
                         Color::srgb(0.92, 0.91, 0.92), // atmospheric extinction color (after light is lost due to absorption by atmospheric particles)
                         Color::srgb(0.246, 0.245, 0.251), // atmospheric inscattering color (light gained due to scattering from the sun)
                     ),
@@ -141,6 +145,7 @@ pub fn setup(
                 far: 30.,
                 ..Default::default()
             }),
+            GameObjectMarker,
             // Projection::Orthographic(OrthographicProjection {
             //     scale: 0.07,
             //     near: 0.0,

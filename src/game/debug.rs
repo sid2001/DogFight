@@ -1,7 +1,7 @@
 use super::bots::{Bot, BotMarker, BotMotion, BotState, BotTurret};
 use super::camera::REAR_VIEW_LAYERS;
-use super::spaceship::*;
 use super::turret::*;
+use super::{spaceship::*, GameObjectMarker};
 use crate::asset_loader::*;
 use crate::sets::*;
 use bevy::audio::{PlaybackMode::*, Volume};
@@ -49,6 +49,7 @@ fn mark_spaceship(
             Transform::from_translation(trans.translation.clone())
                 .with_scale(Vec3::new(0.05, 0.05, 0.05))
                 .with_rotation(trans.rotation.clone()),
+            GameObjectMarker,
         ));
     }
 }
@@ -224,6 +225,7 @@ fn spawn_bot(
                 health: 100.,
                 level: 1,
             },
+            GameObjectMarker,
             BotState::Chasing,
             BotMarker,
             AudioPlayer(audio_assets.throttle_up.clone()),
@@ -260,18 +262,21 @@ fn setup(mut commands: Commands, scene_asset: Res<SceneAssets>) {
         PlanetMarker,
         PlanetRadius(2.),
         REAR_VIEW_LAYERS,
+        GameObjectMarker,
     ));
     commands.spawn((
         SceneRoot(scene_asset.planet1.clone()),
         Transform::from_xyz(0., 0., 4.),
         PlanetMarker,
         PlanetRadius(2.),
+        GameObjectMarker,
     ));
     commands.spawn((
         SceneRoot(scene_asset.planet1.clone()),
         Transform::from_xyz(3., 0., 2.),
         PlanetMarker,
         PlanetRadius(2.),
+        GameObjectMarker,
     ));
 }
 

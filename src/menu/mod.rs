@@ -179,12 +179,15 @@ fn menu_action(
         (Changed<Interaction>, With<Button>),
     >,
     mut game_state: ResMut<NextState<GameState>>,
-    // menu_state: ResMut<NextState<MenuState>>,
+    mut menu_state: ResMut<NextState<MenuState>>,
+    mut in_game_state: ResMut<NextState<InGameStates>>,
 ) {
     for (interaction, menu_action) in interaction_query.iter() {
         match (*interaction, menu_action) {
             (Interaction::Pressed, Some(MenuAction::Start)) => {
                 game_state.set(GameState::Game);
+                menu_state.set(MenuState::Exit);
+                in_game_state.set(InGameStates::Play);
             }
             _ => (),
         }

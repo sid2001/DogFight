@@ -6,6 +6,7 @@ pub mod environment;
 pub mod explosion;
 pub mod hud;
 pub mod mesh;
+pub mod missile;
 pub mod movement;
 pub mod obstacle;
 mod oct_tree;
@@ -15,24 +16,34 @@ pub mod swarm;
 mod terrain;
 pub mod turret;
 
+use std::alloc::GlobalAlloc;
+use std::collections::VecDeque;
+
+use oct_tree::*;
+
 use crate::sets::*;
-use crate::states::GameState;
+use crate::states::{GameState, MenuState};
 use crate::{events::TurretEventPlugin, states::InGameStates};
 use bevy::prelude::*;
+use bevy::state::commands;
+// use bevy_inspector_egui::egui::menu::MenuState;
 use bots::BotPlugin;
 use camera::CameraPlugin;
-use collider::{Collider, ColliderPlugin};
+use collider::{Collider, ColliderInfo, ColliderMarker, ColliderPlugin, ColliderType};
 use debug::DebugPlugin;
 use environment::LandscapePlugin;
 use explosion::ExplosionPlugin;
 use mesh::TestMeshPlugin;
+use missile::MissilePlugin;
 use obstacle::ObstaclePlugin;
-use oct_tree::OctTreePlugin;
+use oct_tree::{NodeEntities, OctTree, OctTreePlugin};
 use pause_menu::PauseMenuPlugin;
 use spaceship::SpaceShipPlugin;
 use swarm::SwarmPlugin;
 use terrain::TerrainPlugin;
 use turret::TurretPlugin;
+#[derive(Component)]
+pub struct GameObjectMarker;
 
 pub struct GamePlugin;
 impl Plugin for GamePlugin {
@@ -50,6 +61,7 @@ impl Plugin for GamePlugin {
         // .add_plugins(TestMeshPlugin);
         .add_plugins(BotPlugin)
         .add_plugins(DebugPlugin)
+        .add_plugins(MissilePlugin)
         // .add_plugins(TerrainPlugin)
         // .add_plugins(OctTreePlugin);
         .add_plugins(ExplosionPlugin)
@@ -73,9 +85,74 @@ impl Plugin for GamePlugin {
         )
         .add_systems(
             Update,
-            in_game_state_action.run_if(in_state(GameState::Game)),
+            (in_game_state_action, visualize_oct_tree)
+                .chain()
+                .run_if(in_state(GameState::Game)),
         )
-        .add_systems(OnExit(GameState::Game), despawn_screen);
+        .add_systems(
+            OnExit(GameState::Game),
+            despawn_game_entities::<GameObjectMarker>,
+        );
+    }
+}
+
+#[derive(Component)]
+pub struct OctNodeMarker;
+
+fn visualize_oct_tree(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut gizmos: Gizmos,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    query: Query<(Entity, &GlobalTransform, &ColliderInfo), With<ColliderMarker>>,
+) {
+    let mut oct_tree = OctTree::default();
+    for (entity, gt, ci) in query.iter() {
+        let mut radius: f32 = 0.;
+        let center = gt.translation();
+        match ci.collider_type {
+            ColliderType::Sphere => {
+                radius = ci.collider.read().unwrap().get_radius().unwrap();
+            }
+            _ => (),
+        }
+        oct_tree
+            .pending_insertions
+            .write()
+            .unwrap()
+            .push(NodeEntities {
+                entity,
+                center,
+                radius,
+            });
+    }
+    oct_tree.build_tree();
+    let mut q: VecDeque<OctNode> = VecDeque::new();
+    q.push_back(oct_tree.root.as_ref().clone());
+    let mat = MeshMaterial3d(materials.add(StandardMaterial {
+        base_color: Color::srgba(0.1, 0., 0., 0.5),
+        ..Default::default()
+    }));
+    while !q.is_empty() {
+        let node = q.pop_front().unwrap();
+        let cube = meshes.add(Cuboid {
+            half_size: Vec3::splat(node.half_length),
+        });
+        // gizmos.cuboid(
+        //     Transform::from_translation(node.center).with_scale(Vec3::splat(node.half_length * 2.)),
+        //     Color::WHITE,
+        // );
+        // commands.spawn((
+        //     Mesh3d(cube),
+        //     mat.clone(),
+        //     Transform::from_translation(node.center),
+        //     OctNodeMarker,
+        // ));
+        if node.children.is_some() {
+            for n in node.children.unwrap() {
+                q.push_back(n.read().unwrap().clone());
+            }
+        }
     }
 }
 
@@ -92,12 +169,18 @@ fn in_game_state_action(
             InGameStates::Paused => {
                 in_game_state.set(InGameStates::Play);
             }
+            _ => (),
         }
     }
 }
 
-fn despawn_screen(mut commands: Commands, query: Query<Entity>) {
+fn despawn_game_entities<T: Component>(
+    mut commands: Commands,
+    query: Query<Entity, With<T>>,
+    mut menu_state: ResMut<NextState<MenuState>>,
+) {
     for ent in query.iter() {
         commands.entity(ent).despawn_recursive();
     }
+    menu_state.set(MenuState::Loading);
 }

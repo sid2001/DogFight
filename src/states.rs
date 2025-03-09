@@ -7,9 +7,9 @@ use bevy::{prelude::*, state::commands};
 
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
 pub enum MenuState {
+    Home,
     #[default]
     Loading,
-    Home,
     Exit,
     Settings,
     CoOp,
@@ -20,6 +20,7 @@ pub enum InGameStates {
     Paused,
     #[default]
     Play,
+    Quit,
 }
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, States)]
 pub enum SpaceShipActionState {
@@ -66,10 +67,12 @@ impl Default for GameState {
 pub struct StatePlugin;
 impl Plugin for StatePlugin {
     fn build(&self, app: &mut App) {
-        app.init_state::<InGameStates>().add_systems(
-            Update,
-            game_startup_state.run_if(in_state(GameState::Loading)),
-        );
+        app.init_state::<InGameStates>()
+            .init_state::<MenuState>()
+            .add_systems(
+                Update,
+                game_startup_state.run_if(in_state(GameState::Loading)),
+            );
         // .add_systems(Update, state_event_control);
     }
 }
