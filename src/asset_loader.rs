@@ -39,6 +39,11 @@ pub struct MenuAssets {
 }
 
 #[derive(Resource, Debug, Default)]
+pub struct MapOneAssets {
+    pub sun: Handle<Scene>,
+}
+
+#[derive(Resource, Debug, Default)]
 pub struct AssetsLoading(pub Vec<UntypedHandle>);
 
 pub struct AssetLoaderPlugin;
@@ -49,10 +54,18 @@ impl Plugin for AssetLoaderPlugin {
             .init_resource::<AudioAssets>()
             .init_resource::<MenuAssets>()
             .init_resource::<AssetsLoading>()
+            .init_resource::<MapOneAssets>()
             .add_systems(PreStartup, load_scene_assets)
             .add_systems(PreStartup, load_audio_assets)
-            .add_systems(PreStartup, load_menu_assets);
+            .add_systems(PreStartup, load_menu_assets)
+            .add_systems(PreStartup, load_map_one_assets);
     }
+}
+
+fn load_map_one_assets(mut map_assets: ResMut<MapOneAssets>, asset_server: Res<AssetServer>) {
+    *map_assets = MapOneAssets {
+        sun: asset_server.load("Sun3.gltf#Scene0"),
+    };
 }
 
 fn load_scene_assets(mut scene_assets: ResMut<SceneAssets>, asset_server: Res<AssetServer>) {

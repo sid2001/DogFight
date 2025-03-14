@@ -206,93 +206,93 @@ fn detect_obstacle(
     }
 }
 
-fn spawn_bot(
-    mut commands: Commands,
-    scene_asset: Res<SceneAssets>,
-    audio_assets: Res<AudioAssets>,
-) {
-    let bot_spaceship = scene_asset.bot_spaceship.clone();
+// fn spawn_bot(
+//     mut commands: Commands,
+//     scene_asset: Res<SceneAssets>,
+//     audio_assets: Res<AudioAssets>,
+// ) {
+//     let bot_spaceship = scene_asset.bot_spaceship.clone();
 
-    commands
-        .spawn((
-            SceneRoot(bot_spaceship.clone()),
-            BotMotion {
-                acceleration: 5.,
-                velocity: Vec3::ONE,
-                ..default()
-            },
-            Bot {
-                health: 100.,
-                level: 1,
-            },
-            GameObjectMarker,
-            BotState::Chasing,
-            BotMarker,
-            AudioPlayer(audio_assets.throttle_up.clone()),
-            PlaybackSettings {
-                mode: Loop,
-                paused: true,
-                spatial: true,
-                ..default()
-            },
-            // PlaybackSettings::LOOP.with_spatial(true).paused(),
-            Transform::from_xyz(0., 20., 0.).with_scale(Vec3::new(0.5, 0.5, 0.5)), // .looking_at(Vec3::Y, Vec3::Z), // .with_rotation(Quat::from_rotation_y(std::f32::consts::PI)),
-        ))
-        .with_children(|parent| {
-            parent.spawn((
-                Transform::from_xyz(0., 10., 0.),
-                Turret(TurretBundle {
-                    shooting: false,
-                    speed: 20.,
-                    bullet_size: 0.0002,
-                    ..default()
-                }),
-                AudioPlayer(audio_assets.laser_turret.clone()),
-                PlaybackSettings::LOOP.with_spatial(true).paused(),
-                BotTurret,
-                TurretMarker,
-            ));
-        });
-}
+//     commands
+//         .spawn((
+//             SceneRoot(bot_spaceship.clone()),
+//             BotMotion {
+//                 acceleration: 5.,
+//                 velocity: Vec3::ONE,
+//                 ..default()
+//             },
+//             Bot {
+//                 health: 100.,
+//                 level: 1,
+//             },
+//             GameObjectMarker,
+//             BotState::Chasing,
+//             BotMarker,
+//             AudioPlayer(audio_assets.throttle_up.clone()),
+//             PlaybackSettings {
+//                 mode: Loop,
+//                 paused: true,
+//                 spatial: true,
+//                 ..default()
+//             },
+//             // PlaybackSettings::LOOP.with_spatial(true).paused(),
+//             Transform::from_xyz(0., 20., 0.).with_scale(Vec3::new(0.5, 0.5, 0.5)), // .looking_at(Vec3::Y, Vec3::Z), // .with_rotation(Quat::from_rotation_y(std::f32::consts::PI)),
+//         ))
+//         .with_children(|parent| {
+//             parent.spawn((
+//                 Transform::from_xyz(0., 10., 0.),
+//                 Turret(TurretBundle {
+//                     shooting: false,
+//                     speed: 20.,
+//                     bullet_size: 0.0002,
+//                     ..default()
+//                 }),
+//                 AudioPlayer(audio_assets.laser_turret.clone()),
+//                 PlaybackSettings::LOOP.with_spatial(true).paused(),
+//                 BotTurret,
+//                 TurretMarker,
+//             ));
+//         });
+// }
 
-fn setup(mut commands: Commands, scene_asset: Res<SceneAssets>) {
-    commands.spawn((
-        SceneRoot(scene_asset.planet1.clone()),
-        Transform::from_xyz(0., 0., 0.),
-        PlanetMarker,
-        PlanetRadius(2.),
-        REAR_VIEW_LAYERS,
-        GameObjectMarker,
-    ));
-    commands.spawn((
-        SceneRoot(scene_asset.planet1.clone()),
-        Transform::from_xyz(0., 0., 4.),
-        PlanetMarker,
-        PlanetRadius(2.),
-        GameObjectMarker,
-    ));
-    commands.spawn((
-        SceneRoot(scene_asset.planet1.clone()),
-        Transform::from_xyz(3., 0., 2.),
-        PlanetMarker,
-        PlanetRadius(2.),
-        GameObjectMarker,
-    ));
-}
+// fn setup(mut commands: Commands, scene_asset: Res<SceneAssets>) {
+//     commands.spawn((
+//         SceneRoot(scene_asset.planet1.clone()),
+//         Transform::from_xyz(0., 0., 0.),
+//         PlanetMarker,
+//         PlanetRadius(2.),
+//         REAR_VIEW_LAYERS,
+//         GameObjectMarker,
+//     ));
+//     commands.spawn((
+//         SceneRoot(scene_asset.planet1.clone()),
+//         Transform::from_xyz(0., 0., 4.),
+//         PlanetMarker,
+//         PlanetRadius(2.),
+//         GameObjectMarker,
+//     ));
+//     commands.spawn((
+//         SceneRoot(scene_asset.planet1.clone()),
+//         Transform::from_xyz(3., 0., 2.),
+//         PlanetMarker,
+//         PlanetRadius(2.),
+//         GameObjectMarker,
+//     ));
+// }
 
-fn print_position(
-    query: Query<&Transform, With<SpaceShip>>,
-    mut timer: ResMut<MyTimer>,
-    time: Res<Time>,
-    mut bot_query: Query<&mut BotState, (With<BotMarker>, Without<PlanetMarker>)>,
-) {
-    let trans = query.single();
-    let mut state = bot_query.single_mut();
-    if timer.0.tick(time.delta()).just_finished() {
-        // info!("{}", trans.translation);
-        // *state = BotState::Chasing;
-    }
-}
+// fn print_position(
+//     query: Query<&Transform, With<SpaceShip>>,
+//     mut timer: ResMut<MyTimer>,
+//     time: Res<Time>,
+//     mut bot_query: Query<&mut BotState, (With<BotMarker>, Without<PlanetMarker>)>,
+// ) {
+//     let trans = query.single();
+//     let mut state = bot_query.single_mut();
+//     if timer.0.tick(time.delta()).just_finished() {
+//         // info!("{}", trans.translation);
+//         // *state = BotState::Chasing;
+//     }
+// }
 
 // fn search_points(mut commands: Commands, scene_asset: Res<SceneAssets>) {
 //     let map_marker = scene_asset.bot_spaceship.clone();

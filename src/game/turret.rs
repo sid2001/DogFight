@@ -1,7 +1,8 @@
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
-use super::spaceship::SpaceShip;
+use super::collider;
+use super::spaceship::Health;
 use super::{collider::*, GameObjectMarker};
 use crate::sets::*;
 use bevy::prelude::*;
@@ -77,7 +78,6 @@ pub struct Bullet {
 
 #[derive(Resource, Default)]
 pub struct FireRateTimer(Timer);
-
 pub struct TurretPlugin {
     pub bullet_scene_path: String,
 }
@@ -91,7 +91,15 @@ impl Plugin for TurretPlugin {
             .insert_resource(BulletScenePath(self.bullet_scene_path.clone()))
             .add_systems(Startup, setup)
             // .add_systems(Update, shoot_turret)
-            .add_systems(Update, bullet_travel.in_set(UpdateSet::InGame));
+            .add_systems(
+                Update,
+                (
+                    bullet_travel,
+                    collider::collision_response::<BulletMarker>,
+                    despawn_bullet,
+                )
+                    .in_set(UpdateSet::InGame),
+            );
     }
 }
 
@@ -101,17 +109,28 @@ fn bullet_travel(
     time: Res<Time>,
 ) {
     for (entity, mut bullet, mut trans) in query.iter_mut() {
-        if bullet.distance_covered > DEFAULT_BULLET_RANGE {
+        // if bullet.distance_covered > DEFAULT_BULLET_RANGE {
+        //     commands.entity(entity).despawn_recursive();
+        //     // info!("despawned");
+        // } else {
+        trans.translation += (bullet.velocity + bullet.direction.as_vec3().clone() * bullet.speed)
+            * time.delta_secs();
+        bullet.distance_covered += ((bullet.velocity
+            + bullet.direction.as_vec3().clone() * bullet.speed)
+            * time.delta_secs())
+        .length();
+        // }
+    }
+}
+
+fn despawn_bullet(
+    mut commands: Commands,
+    query: Query<(Entity, &Bullet, &Health), With<BulletMarker>>,
+) {
+    for (entity, bullet, health) in query.iter() {
+        if bullet.distance_covered > DEFAULT_BULLET_RANGE || health.0 <= 0. {
+            info!("bulllet");
             commands.entity(entity).despawn_recursive();
-            // info!("despawned");
-        } else {
-            trans.translation += (bullet.velocity
-                + bullet.direction.as_vec3().clone() * bullet.speed)
-                * time.delta_secs();
-            bullet.distance_covered += ((bullet.velocity
-                + bullet.direction.as_vec3().clone() * bullet.speed)
-                * time.delta_secs())
-            .length();
         }
     }
 }
@@ -151,6 +170,7 @@ pub fn shoot_turret<T: Component>(
                             velocity: tur.0.bullet_inertial_velocity,
                             distance_covered: 0.,
                         },
+                        Health(5.),
                         MeshMaterial3d(materials.add(StandardMaterial {
                             emissive: LinearRgba::rgb(5.32, 2.0, 13.99),
                             ..default()
@@ -159,13 +179,15 @@ pub fn shoot_turret<T: Component>(
                         ColliderInfo {
                             collider_type: ColliderType::Point,
                             collider: Arc::new(RwLock::new(PointCollider { center: Vec3::ZERO })),
+                            // ikik not checking for none value cause it won't happen;source: trust me bro
+                            immune_to: Some(Vec::from([tur.0.shooter.unwrap()])),
                         },
                         CollisionDamage {
                             damage: 20.,
                             from: if tur.0.shooter.is_none() {
                                 None
                             } else {
-                                Some(tur.0.shooter.unwrap())
+                                tur.0.shooter
                             },
                         },
                     ));

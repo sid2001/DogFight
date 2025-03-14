@@ -5,6 +5,7 @@ pub mod debug;
 pub mod environment;
 pub mod explosion;
 pub mod hud;
+pub mod map_one;
 pub mod mesh;
 pub mod missile;
 pub mod movement;
@@ -33,6 +34,7 @@ use collider::{Collider, ColliderInfo, ColliderMarker, ColliderPlugin, ColliderT
 use debug::DebugPlugin;
 use environment::LandscapePlugin;
 use explosion::ExplosionPlugin;
+use map_one::MapOnePlugin;
 use mesh::TestMeshPlugin;
 use missile::MissilePlugin;
 use obstacle::ObstaclePlugin;
@@ -56,12 +58,13 @@ impl Plugin for GamePlugin {
         .add_plugins(CameraPlugin)
         .add_plugins(SpaceShipPlugin)
         .add_plugins(ColliderPlugin)
-        .add_plugins(SwarmPlugin)
+        // .add_plugins(SwarmPlugin)
         // .add_plugins(ObstaclePlugin);
         // .add_plugins(TestMeshPlugin);
         .add_plugins(BotPlugin)
         .add_plugins(DebugPlugin)
         .add_plugins(MissilePlugin)
+        .add_plugins(MapOnePlugin)
         // .add_plugins(TerrainPlugin)
         // .add_plugins(OctTreePlugin);
         .add_plugins(ExplosionPlugin)
@@ -76,7 +79,7 @@ impl Plugin for GamePlugin {
             OnEnter(GameState::Game),
             (
                 spaceship::setup,
-                bots::setup,
+                // bots::setup,
                 camera::setup,
                 swarm::setup,
                 turret::setup,
@@ -113,18 +116,18 @@ fn visualize_oct_tree(
         match ci.collider_type {
             ColliderType::Sphere => {
                 radius = ci.collider.read().unwrap().get_radius().unwrap();
+                oct_tree
+                    .pending_insertions
+                    .write()
+                    .unwrap()
+                    .push(NodeEntities {
+                        entity,
+                        center,
+                        radius,
+                    });
             }
             _ => (),
         }
-        oct_tree
-            .pending_insertions
-            .write()
-            .unwrap()
-            .push(NodeEntities {
-                entity,
-                center,
-                radius,
-            });
     }
     oct_tree.build_tree();
     let mut q: VecDeque<OctNode> = VecDeque::new();

@@ -1,7 +1,13 @@
 use super::camera::REAR_VIEW_LAYERS;
+use super::collider::*;
+use super::collider::{self, CollisionDamage};
+use super::explosion::{ExplosibleObjectMarker, ExplosionEvent};
 use super::missile::HomingMissileTarget;
-use bevy::utils::info;
+use super::spaceship::Health;
+use bevy::text::cosmic_text::BorrowedWithFontSystem;
 use bevy::{math::VectorSpace, prelude::*};
+use rand::Rng;
+use std::sync::{Arc, RwLock};
 
 use super::{turret::*, GameObjectMarker};
 use crate::asset_loader::*;
@@ -25,7 +31,7 @@ pub enum BotTargetVicinity {
 
 // marks target entities
 #[derive(Component)]
-pub struct TargetMarker;
+pub struct BotTargetMarker;
 
 // marks projectile from target entities
 #[derive(Component)]
@@ -62,7 +68,7 @@ impl Default for BotMotion {
         Self {
             acceleration: 5.,
             drag: Vec3::ZERO,
-            angular_steer: 60.,
+            angular_steer: 40.,
             velocity: Vec3::ZERO,
             direction: Vec3::Z,
             nearest_obstacle: (f32::INFINITY, Dir3::Y),
@@ -85,37 +91,61 @@ impl BotMotion {
     }
 }
 
+#[derive(Resource)]
+pub struct BotSpawner {
+    pub active_bots: u32,
+    pub capacity: u32,
+    pub next_bot: u32,
+    pub spawn_distance: f32,
+}
+
+impl Default for BotSpawner {
+    fn default() -> Self {
+        Self {
+            active_bots: 0,
+            capacity: 1,
+            next_bot: 0,
+            spawn_distance: 30.,
+        }
+    }
+}
+
 #[derive(Component)]
 pub struct BotTurret;
 
 #[derive(Component)]
 pub struct Bot {
-    pub health: f32,
     pub level: u32,
+    pub is_alive: bool,
 }
 
-#[derive(Resource)]
-pub struct BotCount(u32);
+impl Default for Bot {
+    fn default() -> Self {
+        Self {
+            level: 1,
+            is_alive: true,
+        }
+    }
+}
 
-//*implement later */
-// #[derive(Resource)]
-// pub struct BotAssets {
-//     pub spaceship: Handle<Scene>,
-//     pub turret: Handle<Scene>,
-// }
-
-// #[derive(Bundle)]
-// pub struct BotBundle {
-// }
+// #[derive(Component)]
+// pub struct Health(f32);
 
 pub struct BotPlugin;
 impl Plugin for BotPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(BotCount(0))
+        app.insert_resource(BotSpawner::default())
             // .add_systems(Startup, setup)
             .add_systems(
                 Update,
-                (thrust_control, chase_target)
+                (
+                    spawn_bots,
+                    thrust_control,
+                    chase_target,
+                    avoid_crash,
+                    collider::collision_response::<BotMarker>,
+                    despawn_dead_bots,
+                )
                     .chain()
                     .in_set(UpdateSet::InGame),
             )
@@ -128,11 +158,115 @@ impl Plugin for BotPlugin {
     }
 }
 
+fn despawn_dead_bots(
+    query: Query<(Entity, &Health), With<BotMarker>>,
+    mut commands: Commands,
+    mut bot_spawner: ResMut<BotSpawner>,
+) {
+    for (ent, health) in query.iter() {
+        if health.0 <= 0. {
+            bot_spawner.active_bots -= 1;
+            commands.entity(ent).despawn_recursive();
+        }
+    }
+}
+
+fn spawn_bots(
+    mut commands: Commands,
+    mut bot_spawner: ResMut<BotSpawner>,
+    query: Query<&Transform, With<BotTargetMarker>>,
+    scene_assets: Res<SceneAssets>,
+    audio_assets: Res<AudioAssets>,
+) {
+    while bot_spawner.active_bots < bot_spawner.capacity {
+        bot_spawner.active_bots += 1;
+        let mut bot_scene = scene_assets.bot_spaceship.clone();
+        match bot_spawner.next_bot {
+            1 => {
+                bot_scene = scene_assets.bot_spaceship2.clone();
+            }
+            2 => {
+                bot_scene = scene_assets.bot_spaceship3.clone();
+            }
+            _ => (),
+        }
+        bot_spawner.next_bot = (bot_spawner.next_bot + 1) % 3;
+
+        // todo: this code line is not safe, it's only for temporary use
+        let target = query.single().translation;
+        let mut rng = rand::rng();
+        let (x, y, z) = (
+            rng.random_range(-1.0..1.0),
+            rng.random_range(-1.0..1.0),
+            rng.random_range(-1.0..1.0),
+        );
+        let dir = Vec3::new(x, y, z).normalize_or(Vec3::Y);
+        let spwan_point = target + (bot_spawner.spawn_distance * dir);
+
+        let transform = Transform::from_translation(spwan_point)
+            .looking_at(-dir, Vec3::Y)
+            .with_scale(Vec3::splat(0.5));
+        let bot = commands
+            .spawn((
+                SceneRoot(bot_scene),
+                BotMotion::default(),
+                BotState::Chasing,
+                BotMarker,
+                Bot::default(),
+                REAR_VIEW_LAYERS,
+                GameObjectMarker,
+                Health(1000.0),
+                HomingMissileTarget,
+                ColliderMarker,
+                ColliderInfo {
+                    collider_type: ColliderType::Sphere,
+                    collider: Arc::new(RwLock::new(SphericalCollider {
+                        radius: 0.3,
+                        center: Vec3::ZERO,
+                    })),
+                    immune_to: None,
+                },
+                ExplosibleObjectMarker,
+                (
+                    AudioPlayer(audio_assets.throttle_up.clone()),
+                    PlaybackSettings::LOOP.with_spatial(true),
+                ),
+                transform,
+            ))
+            .id();
+        commands.entity(bot).insert(CollisionDamage {
+            damage: 100.,
+            from: Some(bot),
+        });
+        commands.entity(bot).with_children(|parent| {
+            parent.spawn((
+                Transform::from_xyz(0., 0., 0.),
+                Turret(TurretBundle {
+                    shooting: false,
+                    speed: 20.,
+                    bullet_size: 0.0002,
+                    shooter: Some(parent.parent_entity()),
+                    ..default()
+                }),
+                AudioPlayer(audio_assets.laser_turret.clone()),
+                PlaybackSettings {
+                    mode: bevy::audio::PlaybackMode::Loop,
+                    paused: true,
+                    spatial: true,
+                    ..default()
+                },
+                BotTurret,
+                TurretMarker,
+            ));
+        });
+    }
+}
+
 fn chase_target(
-    target_query: Query<&Transform, With<TargetMarker>>,
+    target_query: Query<&Transform, With<BotTargetMarker>>,
     mut bot_query: Query<
         (&mut Transform, &mut BotState, &mut BotMotion),
-        (With<BotMarker>, Without<TargetMarker>),
+        (With<BotMarker>, Without<BotTargetMarker>),
     >,
     time: Res<Time>,
 ) {
@@ -187,11 +321,27 @@ fn thrust_control(mut query_bots: Query<&mut BotMotion, With<BotMarker>>, time: 
     }
 }
 
+fn avoid_crash(mut query: Query<(&mut BotMotion, &Transform), With<BotMarker>>, time: Res<Time>) {
+    let mut bot_iter = query.iter_combinations_mut();
+
+    while let Some([(mut bm1, t1), (_, t2)]) = bot_iter.fetch_next() {
+        let diff_vec = t2.translation - t1.translation;
+        if diff_vec.length_squared() < 0.5 {
+            let drag_vec = diff_vec.normalize();
+            let drag_mag = bm1.velocity.dot(drag_vec);
+            bm1.velocity -= drag_mag * drag_vec * time.delta_secs();
+            if drag_mag == 0. {
+                bm1.velocity -= drag_vec * time.delta_secs();
+            }
+        }
+    }
+}
+
 fn aim_target(
-    target_query: Query<&Transform, With<TargetMarker>>,
+    target_query: Query<&Transform, With<BotTargetMarker>>,
     mut bot_query: Query<
         (&mut Transform, &mut BotMotion, &BotState),
-        (With<BotMarker>, Without<TargetMarker>),
+        (With<BotMarker>, Without<BotTargetMarker>),
     >,
     time: Res<Time>,
 ) {
@@ -218,8 +368,11 @@ fn aim_target(
 }
 
 fn shoot_target(
-    target_query: Query<&Transform, With<TargetMarker>>,
-    bot_query: Query<(&Transform, &Children, &BotMotion), (With<BotMarker>, Without<TargetMarker>)>,
+    target_query: Query<&Transform, With<BotTargetMarker>>,
+    bot_query: Query<
+        (&Transform, &Children, &BotMotion),
+        (With<BotMarker>, Without<BotTargetMarker>),
+    >,
     mut bot_turret: Query<(Entity, &mut Turret), (With<TurretMarker>, With<BotTurret>)>,
     mut ev_turret_off: EventWriter<ShootTurretEventOff>,
     mut ev_turret_on: EventWriter<ShootTurretEventOn>,
@@ -273,10 +426,6 @@ pub fn setup(
         .spawn((
             SceneRoot(bot_spaceship.clone()),
             BotMotion { ..default() },
-            Bot {
-                health: 100.,
-                level: 1,
-            },
             BotState::Chasing,
             BotMarker,
             REAR_VIEW_LAYERS,
@@ -314,10 +463,6 @@ pub fn setup(
                 acceleration: 6.,
                 angular_steer: 80.,
                 ..default()
-            },
-            Bot {
-                health: 100.,
-                level: 1,
             },
             AudioPlayer(audio_assets.throttle_up.clone()),
             PlaybackSettings {
@@ -362,10 +507,6 @@ pub fn setup(
                 angular_steer: 40.,
                 ..default()
             },
-            Bot {
-                health: 100.,
-                level: 3,
-            },
             AudioPlayer(audio_assets.throttle_up.clone()),
             PlaybackSettings {
                 mode: bevy::audio::PlaybackMode::Loop,
@@ -408,10 +549,6 @@ pub fn setup(
                 acceleration: 10.,
                 angular_steer: 90.,
                 ..default()
-            },
-            Bot {
-                health: 100.,
-                level: 2,
             },
             AudioPlayer(audio_assets.throttle_up.clone()),
             PlaybackSettings {

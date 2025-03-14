@@ -36,6 +36,7 @@ const DEFAULT_ROLL_ANGULAR_CHANGE: f32 = 100.0;
 const DEFAULT_DIRECTION: (Vec3, Vec3) = (Vec3::Y, Vec3::X);
 const DEFAULT_DRAG: Vec3 = Vec3::new(0.0, 0.0, 0.0);
 const DEFAULT_SPEED_LIMIT: f32 = 1.5;
+const DEFAULT_ROLL_THRUST: f32 = 180.;
 
 const BOT_MISSILE_OFFSET: Transform = Transform {
     translation: Vec3::new(0., -0.08, -0.1),
@@ -71,7 +72,13 @@ pub struct MissileEquipped(MissileType);
 pub struct SpaceShipTurret;
 
 #[derive(Component)]
-pub struct Health(f32);
+pub struct Health(pub f32);
+
+impl Health {
+    fn new(x: f32) -> Self {
+        Self(x)
+    }
+}
 
 #[derive(Resource, Default)]
 pub struct SpaceShipMissileLauncher {
@@ -120,7 +127,7 @@ impl Plugin for SpaceShipPlugin {
                 (
                     aim_homing,
                     draw_aim_lock,
-                    collision_response,
+                    collision_response::<SpaceShip>,
                     spaceship_controls
                         .in_set(InputSet::InGame(ControlsSet::InGame(InGameSet::SpaceShip))),
                     accelerate_spaceship,
@@ -177,6 +184,7 @@ fn spaceship_controls(
     {
         let mut ang = DEFAULT_ANGULAR_CHANGE;
         let mut ang_roll = DEFAULT_ROLL_ANGULAR_CHANGE;
+        // let mut ang_roll = inertia.angular_velocity;
         if keys.pressed(controls.steer_boost.unwrap()) {
             ang += DEFAULT_STEERING_BOOST;
             ang_roll += DEFAULT_ROLL_BOOST;
@@ -192,11 +200,14 @@ fn spaceship_controls(
             dir.0 = rotation.mul_vec3(dir.0);
         }
         if keys.pressed(controls.roll_l.unwrap()) {
+            // inertia.angular_velocity =
+            // inertia.angular_velocity - DEFAULT_ROLL_THRUST * time.delta_secs();
             let rotation = Quat::from_axis_angle(-dir.0, ang_roll.to_radians() * time.delta_secs());
             dir.1 = rotation.mul_vec3(dir.1);
         }
-
         if keys.pressed(controls.roll_r.unwrap()) {
+            // inertia.angular_velocity =
+            // inertia.angular_velocity + DEFAULT_ROLL_THRUST * time.delta_secs();
             let rotation = Quat::from_axis_angle(dir.0, ang_roll.to_radians() * time.delta_secs());
             dir.1 = rotation.mul_vec3(dir.1);
         }
@@ -286,6 +297,9 @@ fn accelerate_spaceship(
     let Vec3 { x, y, z } = inertia.velocity.0.clone() + (acc + drag.0) * time.delta_secs();
 
     inertia.velocity.0 = Vec3 { x, y, z };
+
+    // inertia.angular_velocity =
+    //     inertia.angular_velocity - inertia.angular_velocity * 2. * time.delta_secs();
 
     //* come up with a better drag function
     drag.0 = -inertia.velocity.0.clone() * 2.;
@@ -413,38 +427,6 @@ fn spaceship_orientation(
     trans.rotate(roll);
 }
 
-fn collision_response(
-    mut query: Query<(Entity, &Transform, &ColliderInfo, &mut Health), With<SpaceShip>>,
-    mut ev_reader: EventReader<CollisionEvents>,
-    mut ev_explode: EventWriter<ExplosionEvent>,
-) {
-    // let health = query.single();
-    for msg in ev_reader.read() {
-        match msg {
-            CollisionEvents::TakeDamage(e, d) => {
-                if let Ok((ent, trans, collider, mut health)) = query.get_mut(e.clone()) {
-                    if d.from.is_some_and(|e| e != ent) || d.from.is_none() {
-                        if health.0 <= 0. {
-                            continue;
-                        }
-                        health.0 -= d.damage;
-                        if health.0 <= 0. {
-                            ev_explode.send(ExplosionEvent {
-                                transform: trans.clone(),
-                                explosion: Explosion {
-                                    half_extent: 0.15,
-                                    ..default()
-                                },
-                            });
-                        }
-                        info!("Health {}", health.0);
-                    }
-                }
-            }
-        }
-    }
-}
-
 pub fn setup(
     mut commands: Commands,
     scene_assets: Res<SceneAssets>,
@@ -520,19 +502,17 @@ pub fn setup(
                             ..default()
                         },
                     },
+                    Name::new("SpaceShip"),
                     GameObjectMarker,
                     SwarmTarget,
-                    TargetMarker,
-                    CollisionDamage {
-                        damage: 10.,
-                        from: None,
-                    },
+                    BotTargetMarker,
                     ColliderInfo {
                         collider_type: ColliderType::Sphere,
                         collider: Arc::new(RwLock::new(SphericalCollider {
                             radius: 0.3,
                             center: Vec3::ZERO,
                         })),
+                        immune_to: None,
                     },
                     ColliderMarker,
                     ExplosibleObjectMarker,
@@ -583,6 +563,10 @@ pub fn setup(
                 .with_children(|parent| {
                     parent.spawn((Transform::from_translation(listener.left_ear_offset),));
                     parent.spawn((Transform::from_translation(listener.right_ear_offset),));
+                    // parent.spawn((
+                    //     SceneRoot(scene_assets.map_marker.clone()),
+                    //     Name::new("marker"),
+                    // ));
                 })
                 .id(),
         );
@@ -597,6 +581,12 @@ pub fn setup(
             swarm_launcher_right.unwrap(),
             homing_launcher.unwrap(),
         ]);
+        commands
+            .entity(entities.player.unwrap())
+            .insert(CollisionDamage {
+                damage: 10.,
+                from: entities.player,
+            });
     } else {
         info!("Asset not loaded!")
     }

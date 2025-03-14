@@ -43,7 +43,7 @@ impl Default for SwarmData {
         Self {
             leader: None,
             followers: 0,
-            followers_limit: 5,
+            followers_limit: 10,
             state: SwarmBotState::Solo,
             last_state: SwarmBotState::Solo,
             swarm_id: 0,
@@ -177,8 +177,8 @@ impl Default for SwarmBot {
             swarm_data: SwarmData::default(),
             state: SwarmBotState::Solo,
             swarm_up_distance: 2.,
-            repel_thrust: 0.5,
-            swarm_spacing_min: 0.3,
+            repel_thrust: 0.2,
+            swarm_spacing_min: 0.1,
             swarm_spacing_max: 0.5,
             is_alive: true,
         }
@@ -251,27 +251,33 @@ pub fn setup(mut commands: Commands, scene_assets: Res<SceneAssets>) {
         Transform::from_xyz(origin.x, origin.y, origin.z).with_scale(Vec3::new(0.5, 0.5, 0.5));
     let scene = SceneRoot(scene_assets.swarm_point.clone());
     commands.spawn((swarm, transform, scene, SwarmPointMarker, GameObjectMarker));
-    commands.spawn((
-        SceneRoot(scene_assets.map_marker.clone()),
-        Transform::from_xyz(-4., 4., -6.).with_scale(Vec3::new(0.05, 0.05, 0.05)),
-        SwarmTarget,
-        GameObjectMarker,
-    ));
-    commands.spawn((
-        SceneRoot(scene_assets.map_marker.clone()),
-        Transform::from_xyz(4., 4., -6.).with_scale(Vec3::new(0.05, 0.05, 0.05)),
-        SwarmTarget,
-        GameObjectMarker,
-    ));
+    // commands.spawn((
+    //     SceneRoot(scene_assets.map_marker.clone()),
+    //     Transform::from_xyz(-4., 4., -6.).with_scale(Vec3::new(0.05, 0.05, 0.05)),
+    //     SwarmTarget,
+    //     GameObjectMarker,
+    // ));
+    // commands.spawn((
+    //     SceneRoot(scene_assets.map_marker.clone()),
+    //     Transform::from_xyz(4., 4., -6.).with_scale(Vec3::new(0.05, 0.05, 0.05)),
+    //     SwarmTarget,
+    //     GameObjectMarker,
+    // ));
 }
 
 fn release_bots(
     mut commands: Commands,
     mut query_swarm_point: Query<(Entity, &Transform, &mut SwarmPoint), With<SwarmPointMarker>>,
     scene_assets: Res<SceneAssets>,
+    mut meshes: ResMut<Assets<Mesh>>,
     time: Res<Time>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
     mut swarm_tracker: ResMut<SwarmTracker>,
 ) {
+    let mat_handle = materials.add(StandardMaterial {
+        emissive: LinearRgba::rgb(13.99, 5.32, 10.0),
+        ..default()
+    });
     let time_delta = time.delta();
     for (sp_ent, trans, mut swarm_point) in query_swarm_point.iter_mut() {
         swarm_point.last_burst += time_delta;
@@ -315,6 +321,7 @@ fn release_bots(
                     bot,
                     transform,
                     scene,
+                    MeshMaterial3d(mat_handle.clone()),
                     SwarmBotMarker,
                     ExplosibleObjectMarker,
                     ColliderMarker,
@@ -328,6 +335,7 @@ fn release_bots(
                             radius: 0.05,
                             center: Vec3::ZERO,
                         })),
+                        immune_to: None,
                     },
                     GameObjectMarker,
                 ))
@@ -468,7 +476,7 @@ fn collision_response(
     // let health = query.single();
     for msg in ev_reader.read() {
         match msg {
-            CollisionEvents::TakeDamage(e, d) => {
+            CollisionEvents::TakeDamage(e, d, _) => {
                 if let Ok((ent, trans, c_info, mut s_bot, ex_object)) = query.get_mut(e.clone()) {
                     if d.from.is_some_and(|e| e != ent) || d.from.is_none() {
                         if !s_bot.is_alive {

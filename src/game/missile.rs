@@ -138,14 +138,15 @@ fn move_missile(
                     .cross(dir_vec.normalize_or(Vec3::Y))
                     .normalize_or(Vec3::Y);
                 let rotation = Quat::from_axis_angle(
-                    rot_axis,
+                    rot_axis.normalize_or(Vec3::Y),
                     missile.angular_speed.to_radians() * time.delta_secs(),
                 );
                 trans.rotate(rotation);
             }
         }
+
         let spin_axis = trans.forward();
-        trans.rotate_axis(spin_axis, PI * time.delta_secs());
+        // trans.rotate_axis(spin_axis, PI * 2. * time.delta_secs());
         missile.velocity = missile.velocity
             + ((missile.thrust * trans.forward().as_vec3()) + missile.drag) * time.delta_secs();
         missile.drag = -missile.velocity;

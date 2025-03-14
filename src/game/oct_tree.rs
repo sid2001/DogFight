@@ -3,7 +3,7 @@ use std::sync::{Arc, RwLock};
 
 const ROOT_HALF_LENGTH: f32 = 128.;
 const ROOT_CENTER: Vec3 = Vec3::splat(0.);
-const SPLIT_POINT: u32 = 1;
+const SPLIT_POINT: u32 = 5;
 const MINIMUM_HL: f32 = 0.0625;
 
 pub struct OctTreePlugin;

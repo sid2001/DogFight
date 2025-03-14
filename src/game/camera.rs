@@ -4,7 +4,7 @@ use super::GameObjectMarker;
 use crate::controls::Controls;
 use crate::sets::*;
 use bevy::core_pipeline::bloom::Bloom;
-use bevy::core_pipeline::core_3d::ScreenSpaceTransmissionQuality;
+use bevy::core_pipeline::{core_3d::ScreenSpaceTransmissionQuality, tonemapping::Tonemapping};
 use bevy::image::ImageSampler;
 use bevy::render::camera::Viewport;
 use bevy::render::camera::{RenderTarget, ScalingMode};
@@ -19,10 +19,15 @@ use std::f32::consts::PI;
 // use bevy_core_pipeline::core_3d::graph::Core3d;
 
 const DEFAULT_ANGULAR_SPEED: f32 = 100.;
-pub const REAR_VIEW_LAYERS: RenderLayers = RenderLayers::layer(1);
+pub const MAIN_CAMERA_LAYER: RenderLayers = RenderLayers::layer(0);
+pub const REAR_VIEW_LAYERS: RenderLayers = RenderLayers::layer(2);
+pub const NEBULA_LAYER: RenderLayers = RenderLayers::layer(3);
 
 #[derive(Component)]
 pub struct MyCameraMarker;
+
+#[derive(Component)]
+pub struct NebulaCamMarker;
 
 pub enum ViewMode {
     FirstPerson((f32, f32)),
@@ -63,7 +68,14 @@ impl Plugin for CameraPlugin {
             // .add_systems(Startup, setup)
             .add_systems(
                 Update,
-                (follow_spaceship, camera_view, insert_render_layer).in_set(UpdateSet::InGame),
+                (
+                    follow_spaceship,
+                    camera_view,
+                    insert_render_layer,
+                    sync_with_cam::<NebulaCamMarker>,
+                )
+                    .chain()
+                    .in_set(UpdateSet::InGame),
             );
     }
 }
@@ -71,34 +83,9 @@ impl Plugin for CameraPlugin {
 pub fn setup(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
     mut entities: ResMut<Entities>,
     mut images: ResMut<Assets<Image>>,
 ) {
-    commands.spawn((
-        DirectionalLight {
-            color: Color::srgb(1.0, 1.0, 0.9), // Slight yellowish tint for sunlight
-            illuminance: 2000.0,               // Brightness of the sunlight
-            shadows_enabled: true,             // Enable shadows
-            ..default()
-        },
-        GameObjectMarker,
-        // RenderLayers::layer(0).with(1),
-        Transform::from_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_4)), // 45° angle
-    ));
-
-    commands.spawn((
-        Mesh3d(meshes.add(Cuboid::new(100.0, 100.0, 100.0))),
-        MeshMaterial3d(materials.add(StandardMaterial {
-            base_color: Srgba::hex("9da5bd").unwrap().into(),
-            unlit: true,
-            cull_mode: None,
-            ..default()
-        })),
-        GameObjectMarker,
-        Transform::from_scale(Vec3::splat(20.0)),
-        NotShadowCaster,
-    ));
     entities.camera = Some(
         commands
             .spawn((
@@ -108,16 +95,23 @@ pub fn setup(
                         fov: 70.0_f32.to_radians(),
                         ..Default::default()
                     }),
-                    transform: Transform::from_xyz(0.0, -6.0, 12.0).looking_at(Vec3::ZERO, Vec3::Y),
+                    transform: Transform::from_xyz(25., 25., 25.).looking_at(Vec3::ZERO, Vec3::Y),
                     marker: MyCameraMarker,
                     mode: CameraMode {
                         freelook: false,
                         ..default()
                     },
                 },
+                Camera {
+                    order: 2,
+                    hdr: true,
+                    ..default()
+                },
                 GameObjectMarker,
-                Bloom::NATURAL,
-                RenderLayers::layer(0).with(1),
+                Tonemapping::TonyMcMapface,
+                Bloom { ..Bloom::NATURAL },
+                RenderLayers::from_layers(&[0, 1, 2]),
+                // MAIN_CAMERA_LAYER,
                 DistanceFog {
                     color: Color::srgba(0.06452, 0.01285, 0.12332, 0.9),
                     directional_light_color: Color::srgba(1.0, 0.95, 0.85, 1.),
@@ -133,6 +127,40 @@ pub fn setup(
             .id(),
     );
 
+    commands.spawn((
+        Camera3d { ..default() },
+        Projection::Perspective(PerspectiveProjection {
+            fov: 70.0_f32.to_radians(),
+            ..Default::default()
+        }),
+        Transform::from_xyz(25., 25., 25.).looking_at(Vec3::ZERO, Vec3::Y),
+        NebulaCamMarker,
+        Camera {
+            order: 1,
+            hdr: true,
+            ..default()
+        },
+        GameObjectMarker,
+        Tonemapping::TonyMcMapface,
+        Bloom {
+            // intensity: 0.5,
+            ..Bloom::SCREEN_BLUR
+        },
+        // RenderLayers::layer(2).without(0).without(1),
+        NEBULA_LAYER,
+        DistanceFog {
+            color: Color::srgba(0.06452, 0.01285, 0.12332, 0.9),
+            directional_light_color: Color::srgba(1.0, 0.95, 0.85, 1.),
+            directional_light_exponent: 20.0,
+            falloff: FogFalloff::from_visibility_colors(
+                1., // distance in world units up to which objects retain visibility (>= 5% contrast)
+                Color::srgb(0.92, 0.91, 0.92), // atmospheric extinction color (after light is lost due to absorption by atmospheric particles)
+                Color::srgb(0.246, 0.245, 0.251), // atmospheric inscattering color (light gained due to scattering from the sun)
+            ),
+            // falloff: FogFalloff::ExponentialSquared { density: (0.1) },
+        },
+    ));
+
     let rear_camera = commands
         .spawn((
             Camera3d {
@@ -141,21 +169,15 @@ pub fn setup(
                 ..default()
             },
             Projection::Perspective(PerspectiveProjection {
-                fov: PI / 6.,
+                fov: PI / 1.5,
                 far: 30.,
                 ..Default::default()
             }),
             GameObjectMarker,
-            // Projection::Orthographic(OrthographicProjection {
-            //     scale: 0.07,
-            //     near: 0.0,
-            //     far: 30.,
-            //     ..OrthographicProjection::default_3d()
-            // }),
             Transform::from_translation(Vec3::ZERO).looking_at(Vec3::ZERO, Vec3::Y),
             Camera {
                 // Renders cameras with different priorities to prevent ambiguities
-                order: 2,
+                order: 3,
                 // target: RenderTarget::Image(image_handle),
                 viewport: Some(Viewport {
                     physical_position: UVec2::new(0, 0),
@@ -192,6 +214,17 @@ pub fn setup(
     //     })),
     //     BorderRadius::all(Val::Percent(5.)),
     // ));
+}
+
+fn sync_with_cam<T: Component>(
+    mut query: Query<&mut Transform, With<T>>,
+    mc_query: Query<&Transform, (With<MyCameraMarker>, Without<T>)>,
+) {
+    if let Ok(mc_trans) = mc_query.get_single() {
+        for mut trans in query.iter_mut() {
+            *trans = mc_trans.clone();
+        }
+    }
 }
 
 fn follow_spaceship(
@@ -239,30 +272,12 @@ fn follow_spaceship(
 
     camera.translation += if s == 0. {
         sp_dir.0.clone().normalize() * 0.2
-            + sp_dir.1.clone().cross(sp_dir.0.clone()).normalize() * 0.1
+            + sp_dir.1.clone().cross(sp_dir.0.clone()).normalize() * 0.2
     } else {
         sp_dir.1.clone().cross(sp_dir.0.clone()).normalize() * 0.01
     };
 
     let rotation = Quat::from_rotation_arc(camera.forward().normalize_or_zero(), sp_dir.0);
-    // let rot_axis = trans
-    //     .forward()
-    //     .as_vec3()
-    //     .cross(sp_dir.0)
-    //     .normalize_or_zero();
-    // let angle = camera.forward().as_vec3().clone().angle_between(sp_dir.0);
-    // rotation = Quat::from_axis_angle(rot_axis, angle.to_radians() * time.delta_secs() * 10.);
-    //* this is a correct method but give camera it's own coordinate plane axes
-    //* let angle = (sp_dir
-    //*     .0
-    //*     .clone()
-    //*     .normalize_or_zero()
-    //*     .dot(camera.forward().clone().normalize_or_zero()))
-    //* .acos();
-    //* rotation = Quat::from_axis_angle(
-    //*     sp_dir.1.clone().cross(sp_dir.0.clone()),
-    //*     angle * time.delta_seconds(),
-    //* );
     if !camera_mode.freelook {
         camera.rotate(rotation);
     }

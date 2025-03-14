@@ -12,6 +12,7 @@ pub struct Drag(pub Vec3);
 pub struct Inertia {
     pub velocity: Velocity,
     pub thrust: f32,
+    pub angular_velocity: f32,
 }
 
 #[derive(Component, Default)]

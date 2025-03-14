@@ -1,6 +1,8 @@
 use crate::sets::*;
 use bevy::prelude::*;
+use bevy::utils::info;
 
+use super::explosion::ExplosibleObjectMarker;
 use std::sync::{Arc, RwLock};
 
 pub trait Collider: Send + Sync {
@@ -38,12 +40,13 @@ pub struct CollisionDamage {
 pub struct ColliderInfo {
     pub collider_type: ColliderType,
     pub collider: Arc<RwLock<dyn Collider>>,
+    pub immune_to: Option<Vec<Entity>>,
     // pub collider: T,
 }
 
 #[derive(Event)]
 pub enum CollisionEvents {
-    TakeDamage(Entity, CollisionDamage),
+    TakeDamage(Entity, CollisionDamage, Entity),
 }
 
 impl Collider for SphericalCollider {
@@ -173,11 +176,11 @@ fn detect_collisions(
                     .check_collision_with_sphere(&c2.collider)
                 {
                     if let Some(cd) = cd1 {
-                        ev_writer.send(CollisionEvents::TakeDamage(e2.clone(), cd.clone()));
+                        ev_writer.send(CollisionEvents::TakeDamage(e2, cd.clone(), e1));
                     }
 
                     if let Some(cd) = cd2 {
-                        ev_writer.send(CollisionEvents::TakeDamage(e1.clone(), cd.clone()));
+                        ev_writer.send(CollisionEvents::TakeDamage(e1, cd.clone(), e2));
                     }
                 }
             }
@@ -192,15 +195,76 @@ fn detect_collisions(
                     .check_collision_with_point(&c2.collider)
                 {
                     if let Some(cd) = cd1 {
-                        ev_writer.send(CollisionEvents::TakeDamage(e2.clone(), cd.clone()));
+                        ev_writer.send(CollisionEvents::TakeDamage(e2, cd.clone(), e1));
                     }
 
                     if let Some(cd) = cd2 {
-                        ev_writer.send(CollisionEvents::TakeDamage(e1.clone(), cd.clone()));
+                        ev_writer.send(CollisionEvents::TakeDamage(e1, cd.clone(), e2));
                     }
                 }
             }
             _ => (),
+        }
+    }
+}
+
+use super::explosion::{Explosion, ExplosionEvent};
+use super::spaceship::Health;
+pub fn collision_response<T: Component>(
+    mut query: Query<
+        (
+            Entity,
+            &Transform,
+            &ColliderInfo,
+            &mut Health,
+            Option<&ExplosibleObjectMarker>,
+        ),
+        With<T>,
+    >,
+    mut ev_reader: EventReader<CollisionEvents>,
+    mut ev_explode: EventWriter<ExplosionEvent>,
+) {
+    // let health = query.single();
+    for msg in ev_reader.read() {
+        match msg {
+            CollisionEvents::TakeDamage(e, d, e_with) => {
+                // info!("collision event received");
+                if let Ok((ent, trans, collider, mut health, explosible)) = query.get_mut(e.clone())
+                {
+                    // info!("heatlth {}", health.0);
+                    if d.from.is_some_and(|e| {
+                        e != ent
+                            && || -> bool {
+                                if collider.immune_to.is_some() {
+                                    for x in collider.immune_to.clone().unwrap() {
+                                        if x == e {
+                                            return false;
+                                        }
+                                    }
+                                }
+                                return true;
+                            }()
+                    }) || d.from.is_none()
+                    {
+                        if health.0 <= 0. {
+                            continue;
+                        }
+                        info!("{:?} {:?}", d.from.unwrap(), ent);
+                        health.0 -= d.damage;
+                        if health.0 <= 0. && explosible.is_some() {
+                            // todo: condition if it is explosible
+                            ev_explode.send(ExplosionEvent {
+                                transform: trans.clone(),
+                                explosion: Explosion {
+                                    half_extent: 0.15,
+                                    ..default()
+                                },
+                            });
+                        }
+                        info!("Health {}", health.0);
+                    }
+                }
+            }
         }
     }
 }
