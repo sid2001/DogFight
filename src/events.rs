@@ -5,10 +5,10 @@ use crate::sets::*;
 use bevy::prelude::*;
 
 #[derive(Event)]
-pub struct ThrottleUpEvent(pub Entity);
+pub struct ThrottleUpEvent(pub Entity, pub f32);
 
 #[derive(Event)]
-pub struct ThrottleDownEvent(pub Entity);
+pub struct ThrottleDownEvent(pub Entity, pub f32);
 
 pub struct EventPlugin;
 impl Plugin for EventPlugin {
@@ -39,7 +39,7 @@ fn throttle_sound_on(
     for entity in ev_throttle_up.read() {
         if let Ok(bun) = query.get_mut(entity.0) {
             // error!("up recv");
-            bun.set_volume(bun.volume() + 0.05);
+            bun.set_volume(entity.1.abs() / 10.);
             bun.play();
         } else {
             error!("Entity not present");
@@ -55,7 +55,7 @@ fn throttle_sound_off(
         if let Ok(ref mut bun) = query.get_mut(entity.0) {
             // error!("up dv");
             if bun.volume() != 0. {
-                bun.set_volume(bun.volume() - 0.05);
+                bun.set_volume(entity.1.abs() / 10.);
             } else {
                 bun.pause();
             }

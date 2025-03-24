@@ -115,11 +115,16 @@
                 "baseColorTexture": {
                     "index": 0
                 },
-                "metallicFactor": 0.0
+                "metallicFactor": 1.0
             },
             "alphaCutoff": 0.10000000149011612,
             "alphaMode": "MASK",
-            "doubleSided": true
+            "doubleSided": false,
+            "emissiveFactor": [
+                3.838798999786377,
+                2.6444796919822693,
+                1.00802319310605526
+            ]
         }
     ],
     "meshes": [

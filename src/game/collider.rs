@@ -1,3 +1,5 @@
+use crate::asset_loader::AudioAssets;
+use crate::game::bots::BotMarker;
 use crate::sets::*;
 use bevy::prelude::*;
 use bevy::utils::info;
@@ -13,12 +15,14 @@ pub trait Collider: Send + Sync {
     fn set_center(&mut self, c: Vec3) -> Result<(), ()>;
 }
 
+#[derive(Clone)]
 pub enum ColliderType {
     Sphere,
     Box,
     Point,
 }
 
+#[derive(Clone)]
 pub struct SphericalCollider {
     pub radius: f32,
     pub center: Vec3,
@@ -122,12 +126,13 @@ impl Collider for PointCollider {
     fn get_radius(&self) -> Result<f32, ()> {
         Err(())
     }
+
     fn set_center(&mut self, c: Vec3) -> Result<(), ()> {
         self.center = c;
         Ok(())
     }
 }
-#[derive(Component)]
+#[derive(Component, Clone)]
 pub struct ColliderMarker;
 
 pub struct ColliderPlugin;
@@ -221,6 +226,7 @@ pub fn collision_response<T: Component>(
         ),
         With<T>,
     >,
+    audio_asset: Res<AudioAssets>,
     mut ev_reader: EventReader<CollisionEvents>,
     mut ev_explode: EventWriter<ExplosionEvent>,
 ) {
@@ -249,7 +255,7 @@ pub fn collision_response<T: Component>(
                         if health.0 <= 0. {
                             continue;
                         }
-                        info!("{:?} {:?}", d.from.unwrap(), ent);
+                        // info!("{:?} {:?}", d.from.unwrap(), ent);
                         health.0 -= d.damage;
                         if health.0 <= 0. && explosible.is_some() {
                             // todo: condition if it is explosible
@@ -259,6 +265,7 @@ pub fn collision_response<T: Component>(
                                     half_extent: 0.15,
                                     ..default()
                                 },
+                                sound: Some(audio_asset.explosion.clone()),
                             });
                         }
                         info!("Health {}", health.0);

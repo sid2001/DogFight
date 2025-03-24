@@ -1,13 +1,17 @@
 use bevy::prelude::*;
 use bevy::render::view::RenderLayers;
-use bevy::time::common_conditions::once_after_delay;
-use bevy_inspector_egui::egui::Rgba;
 use rand::Rng;
+use std::sync::{Arc, RwLock};
 
+use super::debug::{ObstacleInfo, ObstacleMarker};
 use super::GameObjectMarker;
 use crate::asset_loader::MapOneAssets;
 use crate::game::camera::MAIN_CAMERA_LAYER;
 use crate::game::camera::NEBULA_LAYER;
+use crate::game::collider::{
+    ColliderInfo, ColliderMarker, ColliderType, CollisionDamage, SphericalCollider,
+};
+use crate::game::obstacle::Obstacle;
 use crate::sets::*;
 use crate::states::*;
 use bevy::pbr::*;
@@ -25,7 +29,7 @@ impl Plugin for MapOnePlugin {
             )
             .add_systems(
                 Update,
-                insert_emissive_property
+                (insert_emissive_property, revolve_satellites)
                     .in_set(UpdateSet::InGame)
                     .run_if(in_state(GameState::Game)),
             );
@@ -56,44 +60,55 @@ fn setup_lights(mut commands: Commands) {
     commands.spawn((
         point_light.clone(),
         GameObjectMarker,
-        Transform::from_xyz(100., 100., 100.),
+        Transform::from_xyz(50., 50., 50.),
     ));
     commands.spawn((
         point_light,
         GameObjectMarker,
-        Transform::from_xyz(-100., 100., 100.),
+        Transform::from_xyz(-50., 50., 50.),
     ));
     commands.spawn((
         point_light,
         GameObjectMarker,
-        Transform::from_xyz(100., -100., 100.),
+        Transform::from_xyz(50., -50., 50.),
     ));
     commands.spawn((
         point_light,
         GameObjectMarker,
-        Transform::from_xyz(100., 100., -100.),
+        Transform::from_xyz(50., 50., -50.),
     ));
     commands.spawn((
         point_light,
         GameObjectMarker,
-        Transform::from_xyz(-100., -100., 100.),
+        Transform::from_xyz(-50., -50., 50.),
     ));
     commands.spawn((
         point_light,
         GameObjectMarker,
-        Transform::from_xyz(-100., 100., -100.),
+        Transform::from_xyz(-50., 50., -50.),
     ));
     commands.spawn((
         point_light,
         GameObjectMarker,
-        Transform::from_xyz(100., -100., -100.),
+        Transform::from_xyz(50., -50., -50.),
     ));
     commands.spawn((
         point_light,
         GameObjectMarker,
-        Transform::from_xyz(-100., -100., -100.),
+        Transform::from_xyz(-50., -50., -50.),
     ));
 }
+
+#[derive(Component)]
+pub struct Satellite {
+    angular_speed: f32,
+    distance: f32,
+    gravity: f32,
+    axis: Vec3,
+}
+
+#[derive(Component)]
+pub struct SatelliteMarker;
 
 fn setup(
     map_assets: Res<MapOneAssets>,
@@ -101,21 +116,156 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    let dot_material_emissive = materials.add(StandardMaterial {
-        alpha_mode: AlphaMode::Blend,
-        emissive: LinearRgba::rgb(2., 2., 2.),
-        ..default()
-    });
     let dot_mesh = meshes.add(Sphere::new(0.02).mesh().ico(1).unwrap());
-
-    // let cover = commands
-    //     .spawn((
-    //         Mesh3d(mesh.clone()),
-    //         MeshMaterial3d(material_emissive2),
-    //         // Transform::from_xyz(-5., -5., -5.),
-    //         // NEBULA_LAYER,
-    //     ))
-    //     .id();
+    let satellite_collider_obstacle = (
+        ColliderMarker,
+        CollisionDamage {
+            damage: 1000.,
+            from: None,
+        },
+        ObstacleMarker,
+        ObstacleInfo { radius: 2. },
+    );
+    commands.spawn((
+        Satellite {
+            angular_speed: 2.,
+            distance: 14.,
+            gravity: 0.,
+            axis: Vec3::Z,
+        },
+        ColliderInfo {
+            collider_type: ColliderType::Sphere,
+            collider: Arc::new(RwLock::new(SphericalCollider {
+                radius: 2.,
+                center: Vec3::ZERO,
+            })),
+            immune_to: None,
+        },
+        satellite_collider_obstacle.clone(),
+        SatelliteMarker,
+        Transform::from_translation(Vec3::new(0., 14., 0.)),
+        SceneRoot(map_assets.planet1.clone()),
+    ));
+    commands.spawn((
+        Satellite {
+            angular_speed: -5.0,
+            distance: 16.,
+            gravity: 0.,
+            axis: Vec3::Y,
+        },
+        ColliderInfo {
+            collider_type: ColliderType::Sphere,
+            collider: Arc::new(RwLock::new(SphericalCollider {
+                radius: 2.,
+                center: Vec3::ZERO,
+            })),
+            immune_to: None,
+        },
+        satellite_collider_obstacle.clone(),
+        SatelliteMarker,
+        Transform::from_translation(Vec3::new(-16., 0., 0.)),
+        SceneRoot(map_assets.planet2.clone()),
+    ));
+    commands.spawn((
+        Satellite {
+            angular_speed: 4.0,
+            distance: 26.,
+            gravity: 0.,
+            axis: Vec3::Z,
+        },
+        ColliderInfo {
+            collider_type: ColliderType::Sphere,
+            collider: Arc::new(RwLock::new(SphericalCollider {
+                radius: 2.,
+                center: Vec3::ZERO,
+            })),
+            immune_to: None,
+        },
+        satellite_collider_obstacle.clone(),
+        SatelliteMarker,
+        Transform::from_translation(Vec3::new(10., 24., 0.)),
+        SceneRoot(map_assets.planet3.clone()),
+    ));
+    commands.spawn((
+        Satellite {
+            angular_speed: 5.,
+            distance: 39.,
+            gravity: 0.,
+            axis: Vec3::X,
+        },
+        ColliderInfo {
+            collider_type: ColliderType::Sphere,
+            collider: Arc::new(RwLock::new(SphericalCollider {
+                radius: 2.,
+                center: Vec3::ZERO,
+            })),
+            immune_to: None,
+        },
+        satellite_collider_obstacle.clone(),
+        SatelliteMarker,
+        Transform::from_translation(Vec3::new(-36., 15., 0.)),
+        SceneRoot(map_assets.planet4.clone()),
+    ));
+    commands.spawn((
+        Satellite {
+            angular_speed: -5.,
+            distance: 34.,
+            gravity: 0.,
+            axis: Vec3::X,
+        },
+        ColliderInfo {
+            collider_type: ColliderType::Sphere,
+            collider: Arc::new(RwLock::new(SphericalCollider {
+                radius: 2.,
+                center: Vec3::ZERO,
+            })),
+            immune_to: None,
+        },
+        satellite_collider_obstacle.clone(),
+        SatelliteMarker,
+        Transform::from_translation(Vec3::new(4., 10., 32.)),
+        SceneRoot(map_assets.planet5.clone()),
+    ));
+    commands.spawn((
+        Satellite {
+            angular_speed: 5.,
+            distance: 34.,
+            gravity: 0.,
+            axis: Vec3::Y,
+        },
+        ColliderInfo {
+            collider_type: ColliderType::Sphere,
+            collider: Arc::new(RwLock::new(SphericalCollider {
+                radius: 2.,
+                center: Vec3::ZERO,
+            })),
+            immune_to: None,
+        },
+        satellite_collider_obstacle.clone(),
+        SatelliteMarker,
+        Transform::from_translation(Vec3::new(10., -4., -32.)),
+        SceneRoot(map_assets.planet6.clone()),
+    ));
+    commands.spawn((
+        Satellite {
+            angular_speed: 2.,
+            distance: 34.,
+            gravity: 0.,
+            axis: Vec3::Z,
+        },
+        ColliderInfo {
+            collider_type: ColliderType::Sphere,
+            collider: Arc::new(RwLock::new(SphericalCollider {
+                radius: 2.,
+                center: Vec3::ZERO,
+            })),
+            immune_to: None,
+        },
+        satellite_collider_obstacle.clone(),
+        SatelliteMarker,
+        Transform::from_translation(Vec3::new(4., 32., 10.)),
+        SceneRoot(map_assets.planet7.clone()),
+    ));
     commands.spawn((
         Mesh3d(meshes.add(Cuboid::new(100.0, 100.0, 100.0))),
         MeshMaterial3d(materials.add(StandardMaterial {
@@ -136,10 +286,13 @@ fn setup(
     });
     let sun_bundle = (
         Transform {
-            translation: Vec3::new(5., 5., 5.),
+            translation: Vec3::new(0., 0., 0.),
             scale: Vec3::splat(4.),
             ..default()
         },
+        Name::new("Sun"),
+        ObstacleMarker,
+        ObstacleInfo { radius: 4.5 },
         PointLight {
             color: Color::LinearRgba(LinearRgba {
                 red: 255.,
@@ -155,23 +308,33 @@ fn setup(
         RenderLayers::layer(0).with(1).with(2),
         // MAIN_CAMERA_LAYER,
         MeshMaterial3d(mat_handle),
+        GameObjectMarker,
         SceneRoot(map_assets.sun.clone()),
     );
     let _sun = commands.spawn(sun_bundle).id();
     let mut rng = rand::rng();
     let mut rng2 = rand::rng();
-    for i in (-20..20).step_by(10) {
-        for j in (-20..20).step_by(5) {
-            for k in (-20..20).step_by(5) {
+    for i in (-50..50).step_by(20) {
+        // if i > -25 && i < 25 {
+        //     continue;
+        // }
+        for j in (-50..50).step_by(10) {
+            // if j > -25 && j < 25 {
+            //     continue;
+            // }
+            for k in (-50..50).step_by(10) {
+                if i32::pow(i, 2) + i32::pow(j, 2) + i32::pow(k, 2) <= 1600 {
+                    continue;
+                }
                 let x = rng.random_range(-10.0..=10.0) + i as f32;
-                let y = rng.random_range(-2.0..=5.0) + j as f32;
-                let z = rng.random_range(-2.0..=5.0) + k as f32;
+                let y = rng.random_range(-10.0..=10.0) + j as f32;
+                let z = rng.random_range(-10.0..=10.0) + k as f32;
                 let (r, g, b) = (
                     rng2.random_range(-1.0..1.0),
                     rng2.random_range(-1.0..1.0),
                     rng2.random_range(-1.0..1.0),
                 );
-                let spark = rng.random_range(1.0..2.0);
+                let spark = rng.random_range(1.0..3.0);
                 let transform = Transform::from_xyz(x, y, z);
                 commands.spawn((
                     Mesh3d(dot_mesh.clone()),
@@ -187,6 +350,19 @@ fn setup(
         }
     }
     // commands.entity(sun).add_child(cover);
+}
+
+fn revolve_satellites(
+    mut query: Query<(&Satellite, &mut Transform), With<SatelliteMarker>>,
+    time: Res<Time>,
+) {
+    for (sat, mut trans) in query.iter_mut() {
+        trans.rotate_around(
+            Vec3::ZERO,
+            Quat::from_axis_angle(sat.axis, sat.angular_speed.to_radians() * time.delta_secs()),
+        );
+        trans.rotate_local_x(sat.angular_speed.to_radians() * 4. * time.delta_secs());
+    }
 }
 
 fn insert_emissive_property(

@@ -34,6 +34,10 @@ pub struct TurretBundle {
     pub direction: Dir3,
     pub bullet_size: f32,
     pub shooter: Option<Entity>,
+    pub cooldown_time: f32,
+    pub cooldown: f32,
+    pub overheat_limit: f32,
+    pub overheat: bool,
     pub bullet_inertial_velocity: Vec3,
 }
 
@@ -56,6 +60,10 @@ impl Default for TurretBundle {
             bullet_size: 1.,
             bullet_inertial_velocity: Vec3::ZERO,
             shooter: None,
+            overheat_limit: 2.,
+            cooldown: 0.,
+            cooldown_time: 3.,
+            overheat: false,
         }
     }
 }
@@ -147,16 +155,20 @@ pub fn setup(
 
 pub fn shoot_turret<T: Component>(
     mut commands: Commands,
-    mut query: Query<(&Turret, &GlobalTransform), (With<TurretMarker>, With<T>)>,
+    mut query: Query<(&mut Turret, &GlobalTransform), (With<TurretMarker>, With<T>)>,
     bullet: Res<TurretBullet>,
     mut timer: ResMut<FireRateTimer>,
     time: Res<Time>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    for (tur, gt) in query.iter_mut() {
+    for (mut tur, gt) in query.iter_mut() {
         match tur.0.shooting {
             true => {
                 if timer.0.tick(time.delta()).just_finished() {
+                    if tur.0.overheat {
+                        continue;
+                    }
+                    tur.0.cooldown += 0.08;
                     commands.spawn((
                         GameObjectMarker,
                         SceneRoot(bullet.handle.clone()),
@@ -184,16 +196,29 @@ pub fn shoot_turret<T: Component>(
                         },
                         CollisionDamage {
                             damage: 20.,
-                            from: if tur.0.shooter.is_none() {
-                                None
-                            } else {
-                                tur.0.shooter
-                            },
+                            from: tur.0.shooter,
                         },
                     ));
+                    if tur.0.cooldown >= tur.0.overheat_limit {
+                        tur.0.overheat = true;
+                        tur.0.cooldown = tur.0.cooldown_time;
+                    }
                 };
             }
-            _ => (),
+            false => {
+                if tur.0.overheat {
+                    tur.0.cooldown -= time.delta_secs();
+                    if tur.0.cooldown <= 0. {
+                        tur.0.overheat = false;
+                        tur.0.cooldown = 0.;
+                    }
+                } else if tur.0.cooldown > 0. {
+                    tur.0.cooldown -= time.delta_secs();
+                    if tur.0.cooldown <= 0. {
+                        tur.0.cooldown = 0.;
+                    }
+                }
+            }
         }
     }
 }

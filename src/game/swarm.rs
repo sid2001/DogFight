@@ -1,6 +1,6 @@
 use super::explosion::{ExplosibleObjectMarker, *};
 use super::{collider::*, GameObjectMarker};
-use crate::asset_loader::SceneAssets;
+use crate::asset_loader::{AudioAssets, SceneAssets};
 use crate::sets::*;
 use bevy::prelude::*;
 use rand::Rng;
@@ -470,6 +470,7 @@ fn collision_response(
         ),
         With<SwarmBotMarker>,
     >,
+    audio_asset: Res<AudioAssets>,
     mut ev_reader: EventReader<CollisionEvents>,
     mut ev_explode: EventWriter<ExplosionEvent>,
 ) {
@@ -493,6 +494,7 @@ fn collision_response(
                                         half_extent: 0.15,
                                         ..default()
                                     },
+                                    sound: Some(audio_asset.small_explosion.clone()),
                                 });
                             }
                             // s_bot.health = 20.

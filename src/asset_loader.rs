@@ -25,6 +25,8 @@ pub struct AudioAssets {
     pub laser_turret: Handle<AudioSource>,
     pub homing_launch: Handle<AudioSource>,
     pub homing_cruise: Handle<AudioSource>,
+    pub explosion: Handle<AudioSource>,
+    pub small_explosion: Handle<AudioSource>,
 }
 
 #[derive(Resource, Debug, Default)]
@@ -41,6 +43,13 @@ pub struct MenuAssets {
 #[derive(Resource, Debug, Default)]
 pub struct MapOneAssets {
     pub sun: Handle<Scene>,
+    pub planet1: Handle<Scene>,
+    pub planet2: Handle<Scene>,
+    pub planet3: Handle<Scene>,
+    pub planet4: Handle<Scene>,
+    pub planet5: Handle<Scene>,
+    pub planet6: Handle<Scene>,
+    pub planet7: Handle<Scene>,
 }
 
 #[derive(Resource, Debug, Default)]
@@ -65,6 +74,13 @@ impl Plugin for AssetLoaderPlugin {
 fn load_map_one_assets(mut map_assets: ResMut<MapOneAssets>, asset_server: Res<AssetServer>) {
     *map_assets = MapOneAssets {
         sun: asset_server.load("Sun3.gltf#Scene0"),
+        planet1: asset_server.load("Planet1.glb#Scene0"),
+        planet2: asset_server.load("Planet2.glb#Scene0"),
+        planet3: asset_server.load("Planet3.glb#Scene0"),
+        planet4: asset_server.load("Planet4.glb#Scene0"),
+        planet5: asset_server.load("Planet5.glb#Scene0"),
+        planet6: asset_server.load("Planet6.glb#Scene0"),
+        planet7: asset_server.load("Planet7.glb#Scene0"),
     };
 }
 
@@ -95,6 +111,8 @@ fn load_audio_assets(mut audio_assets: ResMut<AudioAssets>, asset_server: Res<As
         laser_turret: asset_server.load("sounds/laserturret.ogg"),
         homing_cruise: asset_server.load("sounds/homing_cruise.ogg"),
         homing_launch: asset_server.load("sounds/homing_launch.ogg"),
+        explosion: asset_server.load("sounds/explosion.ogg"),
+        small_explosion: asset_server.load("sounds/slow_explosion.ogg"),
     }
 }
 

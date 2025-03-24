@@ -31,7 +31,7 @@ const DEFAULT_SPAWN: Vec3 = Vec3::ZERO;
 const DEFAULT_ANGULAR_CHANGE: f32 = 50.0;
 const DEFAULT_STEERING_BOOST: f32 = 30.;
 const DEFAULT_ROLL_BOOST: f32 = 60.;
-const DEFAULT_THRUST_LIMIT: f32 = 30.0;
+const DEFAULT_THRUST_LIMIT: f32 = 10.0;
 const DEFAULT_ROLL_ANGULAR_CHANGE: f32 = 100.0;
 const DEFAULT_DIRECTION: (Vec3, Vec3) = (Vec3::Y, Vec3::X);
 const DEFAULT_DRAG: Vec3 = Vec3::new(0.0, 0.0, 0.0);
@@ -171,13 +171,13 @@ fn spaceship_controls(
         // }
         if inertia.thrust != DEFAULT_THRUST_LIMIT {
             inertia.thrust += 2.0;
-            ev_throttle_up.send(ThrottleUpEvent(sp_ent.clone()));
+            ev_throttle_up.send(ThrottleUpEvent(sp_ent.clone(), inertia.thrust));
         }
     }
     if keys.just_pressed(controls.back_thrust.unwrap()) {
         if inertia.thrust != -DEFAULT_THRUST_LIMIT {
             inertia.thrust -= 2.0;
-            ev_throttle_down.send(ThrottleDownEvent(sp_ent.clone()));
+            ev_throttle_up.send(ThrottleUpEvent(sp_ent.clone(), inertia.thrust));
         }
     }
 
@@ -239,6 +239,11 @@ fn spaceship_controls(
     if keys.pressed(controls.shoot.unwrap()) {
         for (ent, mut tur) in turret_query.iter_mut() {
             // error!("relesed");
+            if tur.0.overheat == true {
+                tur.0.shooting = false;
+                ev_turret_off.send(ShootTurretEventOff(ent.clone()));
+                continue;
+            }
             tur.0.shooting = true;
             tur.0.bullet_inertial_velocity = inertia.velocity.0.clone();
             ev_turret_on.send(ShootTurretEventOn(ent.clone()));
@@ -272,7 +277,7 @@ fn spaceship_controls(
             damage: 100.,
             velocity: inertia.velocity.0,
             drag: Vec3::ZERO,
-            angular_speed: 200.,
+            angular_speed: 720.,
         };
         ev_missile.send(HomingMissileShootEvent {
             missile,
@@ -328,7 +333,7 @@ fn aim_homing(
                             let dist = dir_vec.length_squared();
                             let angle = l_trans.forward().dot(dir_vec.normalize_or_zero()).acos();
                             // if the target is still within the range and view
-                            if dist < 100. && angle < PI / 2. {
+                            if dist < 900. && angle < PI / 2. {
                                 target.1 += time.delta();
                             } else {
                                 target.reset();
@@ -465,15 +470,7 @@ pub fn setup(
                 ))
                 .id(),
         );
-        let homing_launcher = Some(
-            commands
-                .spawn((
-                    SceneRoot(scene_assets.missile2.clone()),
-                    HomingMissileLauncher::default(),
-                    BOT_MISSILE_OFFSET,
-                ))
-                .id(),
-        );
+
         let listener = SpatialListener::new(0.25);
         entities.player = Some(
             commands
@@ -568,6 +565,18 @@ pub fn setup(
                     //     Name::new("marker"),
                     // ));
                 })
+                .id(),
+        );
+        let homing_launcher = Some(
+            commands
+                .spawn((
+                    SceneRoot(scene_assets.missile2.clone()),
+                    HomingMissileLauncher {
+                        source: entities.player,
+                        ..Default::default()
+                    },
+                    BOT_MISSILE_OFFSET,
+                ))
                 .id(),
         );
         let launcher = SpaceShipMissileLauncher {

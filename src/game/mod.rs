@@ -58,7 +58,7 @@ impl Plugin for GamePlugin {
         .add_plugins(CameraPlugin)
         .add_plugins(SpaceShipPlugin)
         .add_plugins(ColliderPlugin)
-        // .add_plugins(SwarmPlugin)
+        .add_plugins(SwarmPlugin)
         // .add_plugins(ObstaclePlugin);
         // .add_plugins(TestMeshPlugin);
         .add_plugins(BotPlugin)

@@ -4,17 +4,20 @@ use super::turret::*;
 use super::{spaceship::*, GameObjectMarker};
 use crate::asset_loader::*;
 use crate::sets::*;
+use crate::states::*;
 use bevy::audio::{PlaybackMode::*, Volume};
 use bevy::math::VectorSpace;
 use bevy::prelude::*;
 use std::f32::INFINITY;
 use std::time::Duration;
 
-#[derive(Component)]
-pub struct PlanetMarker;
+#[derive(Component, Clone, Copy)]
+pub struct ObstacleMarker;
 
-#[derive(Component)]
-pub struct PlanetRadius(f32);
+#[derive(Component, Clone, Copy)]
+pub struct ObstacleInfo {
+    pub radius: f32,
+}
 
 #[derive(Resource)]
 pub struct MyTimer(Timer);
@@ -31,7 +34,8 @@ impl Plugin for DebugPlugin {
             Update,
             (detect_obstacle, avoid_obstacle)
                 .chain()
-                .in_set(UpdateSet::InGame),
+                .in_set(UpdateSet::InGame)
+                .run_if(in_state(GameState::Game)),
         );
         // .add_systems(PostStartup, mark_spaceship);
     }
@@ -154,17 +158,17 @@ fn avoid_obstacle(
 }
 
 fn detect_obstacle(
-    query: Query<(&Transform, &PlanetRadius), With<PlanetMarker>>,
+    query: Query<(&Transform, &ObstacleInfo), With<ObstacleMarker>>,
     mut b_query: Query<
         (Entity, &Transform, &mut BotMotion, &mut BotState),
-        (With<BotMarker>, Without<PlanetMarker>),
+        (With<BotMarker>, Without<ObstacleMarker>),
     >,
 ) {
     for (entity, b_trans, mut motion, mut state) in b_query.iter_mut() {
         // store obstacle which is nearest on the collision path
         let mut obstacles: (f32, Dir3) = (f32::INFINITY, Dir3::Z); // placeholder value
-        for (p_trans, radius) in query.iter() {
-            let rad = radius.0.clone();
+        for (p_trans, obstacle) in query.iter() {
+            let rad = obstacle.radius;
             let acc = motion.acceleration.clone();
             let vel = motion.velocity.clone();
             let p_pos = p_trans.translation.clone();

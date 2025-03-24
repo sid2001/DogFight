@@ -1,14 +1,23 @@
 use std::{default, time::Duration};
 
+use bevy::audio::Volume;
 use bevy::{prelude::*, state::commands};
 
+use super::collider::{
+    collision_response, ColliderInfo, ColliderMarker, ColliderType, CollisionDamage,
+    SphericalCollider,
+};
+use super::explosion::ExplosibleObjectMarker;
+use super::spaceship::Health;
 use super::GameObjectMarker;
 use crate::asset_loader::{AudioAssets, SceneAssets};
 use crate::sets::UpdateSet;
 use std::f32::consts::PI;
+use std::sync::{Arc, RwLock};
 
 const HOMING_MISSILE_DAMAGE: f32 = 100.;
 const SWARM_MISSILE_DAMAGE: f32 = 20.;
+const MISSILE_DESTRUCT_TIME: f32 = 5.;
 
 const MISSILE_OFFSET: Transform = Transform::from_xyz(0., 0., 0.);
 
@@ -37,6 +46,7 @@ pub struct SwarmMissileTarget;
 pub struct HomingMissileLauncher {
     pub state: LauncherState,
     pub target: Option<Entity>,
+    pub source: Option<Entity>,
 }
 
 pub enum MissileType {
@@ -78,7 +88,12 @@ impl Plugin for MissilePlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<HomingMissileShootEvent>().add_systems(
             Update,
-            (launch_homing_missile, move_missile).in_set(UpdateSet::InGame),
+            (
+                launch_homing_missile,
+                move_missile,
+                collision_response::<HomingMissileMarker>,
+            )
+                .in_set(UpdateSet::InGame),
         );
     }
 }
@@ -99,12 +114,28 @@ fn launch_homing_missile(
                 GameObjectMarker,
                 HomingMissileMarker,
                 MissileMarker,
+                Health(1.),
                 AudioPlayer(audio_asset.homing_cruise.clone()),
                 PlaybackSettings {
                     mode: bevy::audio::PlaybackMode::Loop,
                     paused: false,
                     spatial: true,
+                    volume: Volume::new(30.),
                     ..default()
+                },
+                ColliderMarker,
+                ExplosibleObjectMarker,
+                ColliderInfo {
+                    collider_type: ColliderType::Sphere,
+                    collider: Arc::new(RwLock::new(SphericalCollider {
+                        center: Vec3::ZERO,
+                        radius: 0.05,
+                    })),
+                    immune_to: Some(Vec::from([homing_launcher.source.unwrap()])),
+                },
+                CollisionDamage {
+                    damage: 1000.,
+                    from: homing_launcher.source,
                 },
                 transform,
                 SceneRoot(scene_asset.missile2.clone()),
@@ -124,12 +155,15 @@ fn launch_homing_missile(
 }
 
 fn move_missile(
-    mut query: Query<(Entity, &mut Transform, &mut Missile), With<MissileMarker>>,
+    mut query: Query<(Entity, &mut Transform, &mut Missile, &Health), With<MissileMarker>>,
     t_query: Query<&Transform, (With<HomingMissileTarget>, Without<MissileMarker>)>,
     time: Res<Time>,
     mut commands: Commands,
 ) {
-    for (ent, mut trans, mut missile) in query.iter_mut() {
+    for (ent, mut trans, mut missile, heatlh) in query.iter_mut() {
+        if heatlh.0 <= 0. {
+            commands.entity(ent).despawn_recursive();
+        }
         if missile.is_locked {
             if let Ok(t_trans) = t_query.get(missile.target.unwrap()) {
                 let dir_vec = t_trans.translation - trans.translation;
@@ -152,7 +186,7 @@ fn move_missile(
         missile.drag = -missile.velocity;
         trans.translation += missile.velocity * time.delta_secs();
         missile.timer += time.delta();
-        if missile.timer.as_secs_f32() > 20. {
+        if missile.timer.as_secs_f32() > MISSILE_DESTRUCT_TIME {
             commands.entity(ent).despawn();
         }
     }

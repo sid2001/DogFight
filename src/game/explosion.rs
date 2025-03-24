@@ -2,6 +2,7 @@ use super::camera::REAR_VIEW_LAYERS;
 use super::spaceship::SpaceShip;
 use super::{swarm::*, GameObjectMarker};
 use crate::sets::*;
+use bevy::audio::Volume;
 use bevy::render::primitives::Aabb;
 use bevy::{
     core_pipeline::bloom::Bloom, gizmos::aabb, prelude::*, render::texture::FallbackImage,
@@ -60,6 +61,7 @@ impl Plugin for ExplosionPlugin {
 pub struct ExplosionEvent {
     pub transform: Transform,
     pub explosion: Explosion,
+    pub sound: Option<Handle<AudioSource>>,
 }
 
 fn explode(
@@ -78,17 +80,32 @@ fn explode(
             .uv(32, 18),
         );
 
-        commands.spawn((
-            Mesh3d(sphere.clone()),
-            ExplosionMarker,
-            ev.explosion,
-            ev.transform,
-            MeshMaterial3d(materials.add(StandardMaterial {
-                emissive: LinearRgba::BLACK,
-                ..default()
-            })),
-            GameObjectMarker,
-        ));
+        let exp = commands
+            .spawn((
+                Mesh3d(sphere.clone()),
+                ExplosionMarker,
+                ev.explosion,
+                ev.transform.clone(),
+                MeshMaterial3d(materials.add(StandardMaterial {
+                    emissive: LinearRgba::BLACK,
+                    ..default()
+                })),
+                GameObjectMarker,
+            ))
+            .id();
+        if let Some(sound) = &ev.sound {
+            commands.spawn((
+                PlaybackSettings {
+                    mode: bevy::audio::PlaybackMode::Despawn,
+                    paused: false,
+                    spatial: true,
+                    // volume: Volume::new(5.),
+                    ..default()
+                },
+                ev.transform.clone(),
+                AudioPlayer(sound.clone()),
+            ));
+        }
         // }
     }
 }

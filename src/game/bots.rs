@@ -4,6 +4,7 @@ use super::collider::{self, CollisionDamage};
 use super::explosion::{ExplosibleObjectMarker, ExplosionEvent};
 use super::missile::HomingMissileTarget;
 use super::spaceship::Health;
+use crate::states::*;
 use bevy::text::cosmic_text::BorrowedWithFontSystem;
 use bevy::{math::VectorSpace, prelude::*};
 use rand::Rng;
@@ -14,6 +15,7 @@ use crate::asset_loader::*;
 use crate::sets::*;
 
 use crate::asset_loader::SceneAssets;
+use crate::states::GameState;
 
 const SHOOT_VICINITY_ANGLE: f32 = 15.;
 const SHOOT_VICINITY_DISTANCE: f32 = 20.;
@@ -103,7 +105,7 @@ impl Default for BotSpawner {
     fn default() -> Self {
         Self {
             active_bots: 0,
-            capacity: 1,
+            capacity: 3,
             next_bot: 0,
             spawn_distance: 30.,
         }
@@ -147,13 +149,15 @@ impl Plugin for BotPlugin {
                     despawn_dead_bots,
                 )
                     .chain()
-                    .in_set(UpdateSet::InGame),
+                    .in_set(UpdateSet::InGame)
+                    .run_if(in_state(GameState::Game)),
             )
             .add_systems(
                 Update,
                 (shoot_target, shoot_turret::<BotTurret>)
                     .chain()
-                    .in_set(UpdateSet::InGame),
+                    .in_set(UpdateSet::InGame)
+                    .run_if(in_state(GameState::Game)),
             );
     }
 }
@@ -248,6 +252,7 @@ fn spawn_bots(
                     shooter: Some(parent.parent_entity()),
                     ..default()
                 }),
+                GameObjectMarker,
                 AudioPlayer(audio_assets.laser_turret.clone()),
                 PlaybackSettings {
                     mode: bevy::audio::PlaybackMode::Loop,
@@ -298,7 +303,7 @@ fn thrust_control(mut query_bots: Query<&mut BotMotion, With<BotMarker>>, time: 
     for mut bm in query_bots.iter_mut() {
         match bm.target_vicinity {
             BotTargetVicinity::Far => {
-                if bm.acceleration < 6. {
+                if bm.acceleration < 10. {
                     bm.acceleration += 0.3 * time.delta_secs();
                 }
             }
@@ -396,6 +401,10 @@ fn shoot_target(
                     if let Ok((ent, mut b_turret)) = bot_turret.get_mut(child.clone()) {
                         if !b_turret.0.shooting {
                             ev_turret_on.send(ShootTurretEventOn(ent.clone()));
+                        } else if b_turret.0.overheat {
+                            b_turret.0.shooting = false;
+                            ev_turret_off.send(ShootTurretEventOff(ent.clone()));
+                            continue;
                         }
                         b_turret.0.shooting = true;
                     }
