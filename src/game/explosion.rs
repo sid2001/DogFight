@@ -1,6 +1,7 @@
 use super::camera::REAR_VIEW_LAYERS;
 use super::spaceship::SpaceShip;
 use super::{swarm::*, GameObjectMarker};
+use crate::asset_loader::SceneAssets;
 use crate::sets::*;
 use bevy::audio::Volume;
 use bevy::render::primitives::Aabb;
@@ -69,6 +70,7 @@ fn explode(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut ev_explode: EventReader<ExplosionEvent>,
+    scene_assets: Res<SceneAssets>,
 ) {
     let mut sphere: Handle<Mesh>;
     for ev in ev_explode.read() {
@@ -87,7 +89,9 @@ fn explode(
                 ev.explosion,
                 ev.transform.clone(),
                 MeshMaterial3d(materials.add(StandardMaterial {
-                    emissive: LinearRgba::BLACK,
+                    emissive: LinearRgba::rgb(20.0, 10.0, 0.0) * 2.,
+                    emissive_texture: Some(scene_assets.fireball_texture.clone()),
+                    alpha_mode: AlphaMode::Add,
                     ..default()
                 })),
                 GameObjectMarker,
@@ -99,7 +103,7 @@ fn explode(
                     mode: bevy::audio::PlaybackMode::Despawn,
                     paused: false,
                     spatial: true,
-                    // volume: Volume::new(5.),
+                    volume: Volume::new(50.),
                     ..default()
                 },
                 ev.transform.clone(),

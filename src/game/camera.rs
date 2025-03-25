@@ -5,15 +5,10 @@ use crate::controls::Controls;
 use crate::sets::*;
 use bevy::core_pipeline::bloom::Bloom;
 use bevy::core_pipeline::{core_3d::ScreenSpaceTransmissionQuality, tonemapping::Tonemapping};
-use bevy::image::ImageSampler;
 use bevy::render::camera::Viewport;
-use bevy::render::camera::{RenderTarget, ScalingMode};
 use bevy::render::view::RenderLayers;
-// use bevy::render::render_resource::{
-//     Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
-// };
 use bevy::{pbr::*, prelude::*};
-use core::ops::Range;
+use noise::Perlin;
 use std::f32::consts::PI;
 
 // use bevy_core_pipeline::core_3d::graph::Core3d;
@@ -22,7 +17,7 @@ const DEFAULT_ANGULAR_SPEED: f32 = 100.;
 pub const MAIN_CAMERA_LAYER: RenderLayers = RenderLayers::layer(0);
 pub const REAR_VIEW_LAYERS: RenderLayers = RenderLayers::layer(2);
 pub const NEBULA_LAYER: RenderLayers = RenderLayers::layer(3);
-
+pub const BACKGROUND_LAYER: RenderLayers = RenderLayers::layer(4);
 #[derive(Component)]
 pub struct MyCameraMarker;
 
@@ -50,6 +45,8 @@ pub struct CameraMode {
 
 #[derive(Component)]
 pub struct RearCameraMarker;
+#[derive(Component)]
+pub struct BackgroundCamMarker;
 
 #[derive(Bundle)]
 pub struct MyCameraBundle {
@@ -73,6 +70,7 @@ impl Plugin for CameraPlugin {
                     camera_view,
                     insert_render_layer,
                     sync_with_cam::<NebulaCamMarker>,
+                    sync_with_cam::<BackgroundCamMarker>,
                 )
                     .chain()
                     .in_set(UpdateSet::InGame),
@@ -86,6 +84,27 @@ pub fn setup(
     mut entities: ResMut<Entities>,
     mut images: ResMut<Assets<Image>>,
 ) {
+    let cam_prop = (
+        Camera3d { ..default() },
+        Projection::Perspective(PerspectiveProjection {
+            fov: 70.0_f32.to_radians(),
+            ..Default::default()
+        }),
+        Transform::from_xyz(25., 25., 25.).looking_at(Vec3::ZERO, Vec3::Y),
+        GameObjectMarker,
+        Tonemapping::TonyMcMapface,
+        DistanceFog {
+            color: Color::srgba(0.06452, 0.01285, 0.12332, 0.9),
+            directional_light_color: Color::srgba(1.0, 0.95, 0.85, 1.),
+            directional_light_exponent: 20.0,
+            falloff: FogFalloff::from_visibility_colors(
+                1., // distance in world units up to which objects retain visibility (>= 5% contrast)
+                Color::srgb(0.92, 0.91, 0.92), // atmospheric extinction color (after light is lost due to absorption by atmospheric particles)
+                Color::srgb(0.246, 0.245, 0.251), // atmospheric inscattering color (light gained due to scattering from the sun)
+            ),
+            // falloff: FogFalloff::ExponentialSquared { density: (0.1) },
+        },
+    );
     entities.camera = Some(
         commands
             .spawn((
@@ -128,37 +147,14 @@ pub fn setup(
     );
 
     commands.spawn((
-        Camera3d { ..default() },
-        Projection::Perspective(PerspectiveProjection {
-            fov: 70.0_f32.to_radians(),
-            ..Default::default()
-        }),
-        Transform::from_xyz(25., 25., 25.).looking_at(Vec3::ZERO, Vec3::Y),
         NebulaCamMarker,
         Camera {
             order: 1,
             hdr: true,
             ..default()
         },
-        GameObjectMarker,
-        Tonemapping::TonyMcMapface,
-        Bloom {
-            // intensity: 0.5,
-            ..Bloom::SCREEN_BLUR
-        },
-        // RenderLayers::layer(2).without(0).without(1),
         NEBULA_LAYER,
-        DistanceFog {
-            color: Color::srgba(0.06452, 0.01285, 0.12332, 0.9),
-            directional_light_color: Color::srgba(1.0, 0.95, 0.85, 1.),
-            directional_light_exponent: 20.0,
-            falloff: FogFalloff::from_visibility_colors(
-                1., // distance in world units up to which objects retain visibility (>= 5% contrast)
-                Color::srgb(0.92, 0.91, 0.92), // atmospheric extinction color (after light is lost due to absorption by atmospheric particles)
-                Color::srgb(0.246, 0.245, 0.251), // atmospheric inscattering color (light gained due to scattering from the sun)
-            ),
-            // falloff: FogFalloff::ExponentialSquared { density: (0.1) },
-        },
+        cam_prop.clone(),
     ));
 
     let rear_camera = commands

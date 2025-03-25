@@ -262,7 +262,13 @@ pub fn collision_response<T: Component>(
                             ev_explode.send(ExplosionEvent {
                                 transform: trans.clone(),
                                 explosion: Explosion {
-                                    half_extent: 0.15,
+                                    half_extent: collider
+                                        .collider
+                                        .read()
+                                        .unwrap()
+                                        .get_radius()
+                                        .unwrap()
+                                        / 2.0,
                                     ..default()
                                 },
                                 sound: Some(audio_asset.explosion.clone()),

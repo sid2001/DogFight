@@ -16,6 +16,7 @@ pub struct SceneAssets {
     pub swarm_point: Handle<Scene>,
     pub missile: Handle<Scene>,
     pub missile2: Handle<Scene>,
+    pub fireball_texture: Handle<Image>,
 }
 
 #[derive(Resource, Debug, Default)]
@@ -27,6 +28,7 @@ pub struct AudioAssets {
     pub homing_cruise: Handle<AudioSource>,
     pub explosion: Handle<AudioSource>,
     pub small_explosion: Handle<AudioSource>,
+    pub swarm_missile_launch: Handle<AudioSource>,
 }
 
 #[derive(Resource, Debug, Default)]
@@ -43,6 +45,8 @@ pub struct MenuAssets {
 #[derive(Resource, Debug, Default)]
 pub struct MapOneAssets {
     pub sun: Handle<Scene>,
+    pub star_texture: Handle<Image>,
+    pub nebula_texture: Handle<Image>,
     pub planet1: Handle<Scene>,
     pub planet2: Handle<Scene>,
     pub planet3: Handle<Scene>,
@@ -74,6 +78,8 @@ impl Plugin for AssetLoaderPlugin {
 fn load_map_one_assets(mut map_assets: ResMut<MapOneAssets>, asset_server: Res<AssetServer>) {
     *map_assets = MapOneAssets {
         sun: asset_server.load("Sun3.gltf#Scene0"),
+        star_texture: asset_server.load("textures/star_texture.png"),
+        nebula_texture: asset_server.load("textures/nebula_texture.png"),
         planet1: asset_server.load("Planet1.glb#Scene0"),
         planet2: asset_server.load("Planet2.glb#Scene0"),
         planet3: asset_server.load("Planet3.glb#Scene0"),
@@ -101,6 +107,7 @@ fn load_scene_assets(mut scene_assets: ResMut<SceneAssets>, asset_server: Res<As
         mes: asset_server.load(GltfAssetLabel::Scene(0).from_asset("Spaceship.gltf")),
         missile: asset_server.load("missile.glb#Scene0"),
         missile2: asset_server.load("missile2.glb#Scene0"),
+        fireball_texture: asset_server.load("textures/fireball_texture.png"),
     };
 }
 
@@ -113,6 +120,7 @@ fn load_audio_assets(mut audio_assets: ResMut<AudioAssets>, asset_server: Res<As
         homing_launch: asset_server.load("sounds/homing_launch.ogg"),
         explosion: asset_server.load("sounds/explosion.ogg"),
         small_explosion: asset_server.load("sounds/slow_explosion.ogg"),
+        swarm_missile_launch: asset_server.load("sounds/swarm_missile_launch.ogg"),
     }
 }
 

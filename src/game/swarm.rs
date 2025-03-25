@@ -1,4 +1,5 @@
 use super::explosion::{ExplosibleObjectMarker, *};
+use super::missile::SwarmMissileTarget;
 use super::{collider::*, GameObjectMarker};
 use crate::asset_loader::{AudioAssets, SceneAssets};
 use crate::sets::*;
@@ -337,6 +338,7 @@ fn release_bots(
                         })),
                         immune_to: None,
                     },
+                    SwarmMissileTarget,
                     GameObjectMarker,
                 ))
                 .id();

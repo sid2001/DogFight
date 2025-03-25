@@ -1,6 +1,7 @@
+use std::mem::transmute_copy;
 use std::{default, time::Duration};
 
-use bevy::audio::Volume;
+use bevy::audio::{SpatialScale, Volume};
 use bevy::{prelude::*, state::commands};
 
 use super::collider::{
@@ -49,6 +50,11 @@ pub struct HomingMissileLauncher {
     pub source: Option<Entity>,
 }
 
+#[derive(Component, Default)]
+pub struct SwarmMissileLauncher {
+    pub source: Option<Entity>,
+}
+
 pub enum MissileType {
     SwarmMissile,
     HomingMissile,
@@ -60,11 +66,28 @@ pub struct HomingMissileShootEvent {
     pub missile: Missile,
 }
 
-#[derive(Event)]
-pub struct SwarmMissileShootEvent(pub Entity);
+#[derive(Clone)]
+pub enum SwarmMissileStage {
+    Stage1(Dir3),
+    Stage2(Option<Entity>, Vec3),
+}
 
-#[derive(Component)]
-pub struct SwarmMissileLauncher;
+#[derive(Component, Clone)]
+pub struct SwarmMissile {
+    pub stage: SwarmMissileStage,
+    pub initial_speed: f32,
+    pub speed: f32,
+    pub timer: Duration,
+    pub target: Option<Entity>,
+    pub converge_point: Vec3,
+    pub angluar_speed: f32,
+}
+
+#[derive(Event)]
+pub struct SwarmMissileShootEvent {
+    pub launcher: Entity,
+    pub missile: SwarmMissile,
+}
 
 #[derive(Component, Clone)]
 pub struct Missile {
@@ -81,27 +104,93 @@ pub struct Missile {
 }
 
 type HomingMissile = Missile;
-type SwarmMissile = Missile;
+// type SwarmMissile = Missile;
 
 pub struct MissilePlugin;
 impl Plugin for MissilePlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<HomingMissileShootEvent>().add_systems(
-            Update,
-            (
-                launch_homing_missile,
-                move_missile,
-                collision_response::<HomingMissileMarker>,
+        app.add_event::<HomingMissileShootEvent>()
+            .add_event::<SwarmMissileShootEvent>()
+            .add_systems(
+                Update,
+                (
+                    launch_homing_missile,
+                    launch_swarm_missile,
+                    move_swarm_missile,
+                    move_missile,
+                )
+                    .in_set(UpdateSet::InGame),
             )
-                .in_set(UpdateSet::InGame),
-        );
+            .add_systems(
+                Update,
+                (
+                    collision_response::<HomingMissileMarker>,
+                    collision_response::<SwarmMissileMarker>,
+                    despawn_swarm_missile,
+                )
+                    .chain()
+                    .in_set(UpdateSet::InGame),
+            );
+    }
+}
+
+fn launch_swarm_missile(
+    mut ev_swarm_missile: EventReader<SwarmMissileShootEvent>,
+    mut commands: Commands,
+    query: Query<(&GlobalTransform, &SwarmMissileLauncher), With<SwarmMissileLauncher>>,
+    scene_asset: Res<SceneAssets>,
+    audio_asset: Res<AudioAssets>,
+) {
+    for SwarmMissileShootEvent { launcher, missile } in ev_swarm_missile.read() {
+        if let Ok((gt, swarm_missile_launcher)) = query.get(*launcher) {
+            let transform = gt.compute_transform();
+            let bundle = (
+                missile.clone(),
+                GameObjectMarker,
+                SwarmMissileMarker,
+                Health(1.),
+                AudioPlayer(audio_asset.homing_cruise.clone()),
+                PlaybackSettings {
+                    mode: bevy::audio::PlaybackMode::Loop,
+                    paused: false,
+                    spatial: true,
+                    // volume: Volume::new(1.),
+                    ..default()
+                },
+                ColliderMarker,
+                ExplosibleObjectMarker,
+                ColliderInfo {
+                    collider_type: ColliderType::Sphere,
+                    collider: Arc::new(RwLock::new(SphericalCollider {
+                        center: Vec3::ZERO,
+                        radius: 0.02,
+                    })),
+                    immune_to: Some(Vec::from([swarm_missile_launcher.source.unwrap()])),
+                },
+                CollisionDamage {
+                    damage: 100.,
+                    from: swarm_missile_launcher.source,
+                },
+                transform,
+                SceneRoot(scene_asset.missile.clone()),
+            );
+            let sound_effect = (
+                AudioPlayer(audio_asset.swarm_missile_launch.clone()),
+                PlaybackSettings {
+                    mode: bevy::audio::PlaybackMode::Despawn,
+                    paused: false,
+                    ..Default::default()
+                },
+            );
+            commands.spawn(sound_effect);
+            commands.spawn(bundle);
+        }
     }
 }
 
 fn launch_homing_missile(
     mut ev_homing: EventReader<HomingMissileShootEvent>,
     query: Query<(&GlobalTransform, &HomingMissileLauncher), With<HomingMissileLauncher>>,
-    // target_query: Query<&Transform, With<HomingMissileTarget>>,
     mut commands: Commands,
     scene_asset: Res<SceneAssets>,
     audio_asset: Res<AudioAssets>,
@@ -120,6 +209,7 @@ fn launch_homing_missile(
                     mode: bevy::audio::PlaybackMode::Loop,
                     paused: false,
                     spatial: true,
+                    spatial_scale: Some(SpatialScale::new(2.)),
                     volume: Volume::new(30.),
                     ..default()
                 },
@@ -188,6 +278,101 @@ fn move_missile(
         missile.timer += time.delta();
         if missile.timer.as_secs_f32() > MISSILE_DESTRUCT_TIME {
             commands.entity(ent).despawn();
+        }
+    }
+}
+
+fn move_swarm_missile(
+    mut query: Query<
+        (Entity, &mut Transform, &mut SwarmMissile, &mut Health),
+        With<SwarmMissileMarker>,
+    >,
+    t_query: Query<&Transform, (With<SwarmMissileTarget>, Without<SwarmMissileMarker>)>,
+    time: Res<Time>,
+    mut commands: Commands,
+) {
+    for (ent, mut s_trans, mut missile, mut health) in query.iter_mut() {
+        let stage = missile.stage.clone();
+        missile.timer = missile.timer + time.delta();
+        'block1: {
+            match stage {
+                SwarmMissileStage::Stage1(dir) => {
+                    let axis = s_trans.forward().cross(dir.as_vec3());
+                    let fallback = s_trans.local_z();
+                    s_trans.rotate_axis(
+                        Dir3::new(axis.normalize_or(fallback.as_vec3())).unwrap(),
+                        (missile.angluar_speed * time.delta_secs()).to_radians(),
+                    );
+
+                    // todo this may not work
+                    if missile.timer.as_secs_f32() >= 0.5 {
+                        missile.stage =
+                            SwarmMissileStage::Stage2(missile.target, missile.converge_point);
+                    }
+                    missile.speed =
+                        -16.0 * (2.0 * missile.timer.as_secs_f32() - 0.5).powf(2.0) + 4.0;
+                }
+                SwarmMissileStage::Stage2(Some(target), _) => {
+                    if let Ok(trans) = t_query.get(target) {
+                        // excute explosion before
+                        let dir_vec = (trans.translation - s_trans.translation).normalize_or_zero();
+                        let axis = s_trans.forward().cross(dir_vec);
+                        if axis.length_squared() == 0. {
+                            break 'block1;
+                        }
+                        let th = dir_vec.dot(s_trans.forward().as_vec3()).acos();
+                        let angle = (missile.angluar_speed * 5. * time.delta_secs()).to_radians();
+                        s_trans.rotate_axis(
+                            Dir3::new(axis.normalize()).unwrap(),
+                            if angle > th { th } else { angle },
+                        );
+                    } else {
+                        missile.target = None;
+                    }
+                    missile.speed = 5.0_f32.powf(2.0 * missile.timer.as_secs_f32() - 1.0);
+                    missile.speed = if missile.speed > 12.0 {
+                        12.0
+                    } else {
+                        missile.speed
+                    };
+                }
+                SwarmMissileStage::Stage2(None, point) => {
+                    let vec_dir = point - s_trans.translation;
+                    if vec_dir.length_squared() < 0.01 {
+                        health.0 = 0.;
+                    }
+                    let axis = s_trans
+                        .forward()
+                        .cross(vec_dir.normalize())
+                        .normalize_or_zero();
+                    if axis.length_squared() == 0. {
+                        break 'block1;
+                    }
+                    s_trans.rotate_axis(
+                        Dir3::new(axis).unwrap(),
+                        missile.angluar_speed * 2.0 * time.delta_secs(),
+                    );
+                }
+            }
+        }
+        s_trans.rotate_local_z(PI * 4.0 * time.delta_secs());
+        s_trans.translation = s_trans.translation
+            + (missile.speed + missile.initial_speed)
+                * s_trans.forward().as_vec3()
+                * time.delta_secs();
+        if missile.timer.as_secs_f32() > 2.0 {
+            health.0 = 0.0;
+        }
+    }
+}
+
+fn despawn_swarm_missile(
+    mut commands: Commands,
+    query: Query<(Entity, &Health), With<SwarmMissileMarker>>,
+) {
+    for (ent, health) in query.iter() {
+        if health.0 <= 0.0 {
+            commands.entity(ent).despawn_recursive();
         }
     }
 }

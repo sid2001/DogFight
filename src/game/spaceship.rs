@@ -3,7 +3,7 @@ use super::collider::*;
 use super::explosion::ExplosibleObjectMarker;
 use super::explosion::{Explosion, ExplosionEvent};
 use super::missile::Missile;
-use super::missile::{HomingMissileShootEvent, HomingMissileTarget};
+use super::missile::{HomingMissileShootEvent, HomingMissileTarget, *};
 use super::movement::{Direction, Drag, Inertia, Position};
 use super::swarm::*;
 use super::turret::*;
@@ -17,10 +17,13 @@ use crate::states::*;
 use bevy::audio::{PlaybackMode::*, Volume};
 use bevy::ecs::query;
 use bevy::gizmos;
+use bevy::input::common_conditions::input_just_pressed;
 use bevy::log::tracing_subscriber::fmt::writer::OrElse;
 use bevy::math::VectorSpace;
 use bevy::prelude::*;
+use bevy::state::commands;
 use bevy::utils::info;
+use rand::Rng;
 use std::f32::consts::PI;
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
@@ -113,15 +116,14 @@ pub struct SpaceShipPlugin;
 
 impl Plugin for SpaceShipPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(MissileEquipped(MissileType::HomingMissile))
-            .insert_resource(SpaceShipHomingTarget(None, Duration::ZERO))
-            .init_resource::<SpaceShipMissileLauncher>()
+        app
             // .add_systems(
             //     Startup,
             //     setup
             //         .in_set(SetupSet::InGame(InGameSet::SpaceShip))
             //         .run_if(in_state(GameState::InGame(InGameStates::Play))),
             // )
+            .add_systems(OnExit(GameState::Game), clean_resources)
             .add_systems(
                 Update,
                 (
@@ -133,6 +135,7 @@ impl Plugin for SpaceShipPlugin {
                     accelerate_spaceship,
                     move_spaceship,
                     spaceship_orientation,
+                    missile_control,
                     // adjust_drag,
                 )
                     .after(SetupSet::InGame)
@@ -150,7 +153,6 @@ fn spaceship_controls(
     mut spaceship_query: Query<(Entity, &mut Inertia, &mut Direction), With<SpaceShip>>,
     mut turret_query: Query<(Entity, &mut Turret), (With<SpaceShipTurret>, Without<SpaceShip>)>,
     mut ev_throttle_up: EventWriter<ThrottleUpEvent>,
-    mut ev_throttle_down: EventWriter<ThrottleDownEvent>,
     mut ev_turret_off: EventWriter<ShootTurretEventOff>,
     mut ev_turret_on: EventWriter<ShootTurretEventOn>,
     mut missile_equipped: ResMut<MissileEquipped>,
@@ -283,6 +285,68 @@ fn spaceship_controls(
             missile,
             launcher: missile_launcher.homing_launcher.unwrap(),
         });
+    }
+}
+
+fn missile_control(
+    mut ev_swarm_missile: EventWriter<SwarmMissileShootEvent>,
+    query: Query<(&Inertia, &Transform), With<SpaceShip>>,
+    missile_equipped: Res<MissileEquipped>,
+    missile_launcher: Res<SpaceShipMissileLauncher>,
+    s_query: Query<(Entity, &Transform), With<SwarmMissileTarget>>,
+    keys: Res<ButtonInput<KeyCode>>,
+    controls: Res<Controls>,
+) {
+    // will panic if more than two, will change later
+    let (inertia, trans) = query.single();
+    if keys.just_pressed(controls.missile_shoot.unwrap()) {
+        match missile_equipped.0 {
+            MissileType::SwarmMissile => {
+                let mut rng = rand::rng();
+                let mut dir;
+                let mut axis = Vec3::Y;
+                for (target, s_trans) in s_query.iter() {
+                    if (s_trans.translation - trans.translation).length_squared() <= 100.0 {
+                        loop {
+                            let (x, y, z) = (
+                                rng.random_range(-1.0..1.0),
+                                rng.random_range(-1.0..1.0),
+                                rng.random_range(-1.0..1.0),
+                            );
+                            if let Some(res) =
+                                trans.forward().cross(Vec3::new(x, y, z)).try_normalize()
+                            {
+                                axis = res;
+                                break;
+                            }
+                        }
+
+                        let angle = (rng.random_range(80.0..90.0) as f32).to_radians();
+                        {
+                            let mut temp = trans.clone();
+                            temp.rotate_axis(Dir3::new(axis).unwrap(), angle);
+                            dir = temp.forward();
+                        }
+
+                        let missile = SwarmMissile {
+                            stage: SwarmMissileStage::Stage1(dir),
+                            angluar_speed: 120.,
+                            initial_speed: inertia.velocity.0.length(),
+                            converge_point: (trans.translation
+                                + (angle * 3.0 / 30.) * trans.forward().as_vec3()),
+                            speed: 0.,
+                            timer: Duration::ZERO,
+                            target: Some(target),
+                        };
+                        ev_swarm_missile.send(SwarmMissileShootEvent {
+                            launcher: missile_launcher.swarm_launcher_left.unwrap(),
+                            missile,
+                        });
+                    }
+                }
+            }
+            MissileType::HomingMissile => {}
+        }
     }
 }
 
@@ -432,13 +496,21 @@ fn spaceship_orientation(
     trans.rotate(roll);
 }
 
+fn clean_resources(mut commands: Commands) {
+    commands.remove_resource::<MissileEquipped>();
+    commands.remove_resource::<SpaceShipHomingTarget>();
+    commands.remove_resource::<SpaceShipMissileLauncher>();
+}
+
 pub fn setup(
     mut commands: Commands,
     scene_assets: Res<SceneAssets>,
     audio_assets: Res<AudioAssets>,
     mut entities: ResMut<Entities>,
-    mut launchers: ResMut<SpaceShipMissileLauncher>,
 ) {
+    commands.insert_resource(MissileEquipped(MissileType::HomingMissile));
+    commands.insert_resource(SpaceShipHomingTarget(None, Duration::ZERO));
+    let mut launchers = SpaceShipMissileLauncher::default();
     if let Some(spaceship_scene) = scene_assets.spaceship.clone().into() {
         info!("spawning spacehip");
         commands.spawn((
@@ -446,30 +518,11 @@ pub fn setup(
             PlaybackSettings {
                 mode: Loop,
                 paused: false,
-                volume: Volume::new(2.),
+                volume: Volume::new(1.),
                 ..default()
             },
             GameObjectMarker,
         ));
-
-        let swarm_launcher_right = Some(
-            commands
-                .spawn((
-                    SceneRoot(scene_assets.missile.clone()),
-                    SwarmMissileLauncher,
-                    SWARM_MISSILE_OFFSET_RIGHT,
-                ))
-                .id(),
-        );
-        let swarm_launcher_left = Some(
-            commands
-                .spawn((
-                    SceneRoot(scene_assets.missile.clone()),
-                    SwarmMissileLauncher,
-                    SWARM_MISSILE_OFFSET_LEFT,
-                ))
-                .id(),
-        );
 
         let listener = SpatialListener::new(0.25);
         entities.player = Some(
@@ -489,8 +542,8 @@ pub fn setup(
                             DEFAULT_DIRECTION.0.clone(),
                             DEFAULT_DIRECTION.1.clone(),
                         ),
-                        transform: Transform::from_translation(Vec3::new(0., -6., 0.))
-                            .looking_at(Vec3::ZERO, Vec3::Z),
+                        transform: Transform::from_xyz(30., 30., 30.),
+                        // .looking_at(Vec3::ZERO, Vec3::Z),
                         throttle_audio: AudioPlayer(audio_assets.throttle_up.clone()),
                         playback_settings: PlaybackSettings {
                             mode: Loop,
@@ -579,12 +632,35 @@ pub fn setup(
                 ))
                 .id(),
         );
-        let launcher = SpaceShipMissileLauncher {
+
+        let swarm_launcher_right = Some(
+            commands
+                .spawn((
+                    SceneRoot(scene_assets.missile.clone()),
+                    SwarmMissileLauncher {
+                        source: entities.player,
+                    },
+                    SWARM_MISSILE_OFFSET_RIGHT,
+                ))
+                .id(),
+        );
+        let swarm_launcher_left = Some(
+            commands
+                .spawn((
+                    SceneRoot(scene_assets.missile.clone()),
+                    SwarmMissileLauncher {
+                        source: entities.player,
+                    },
+                    SWARM_MISSILE_OFFSET_LEFT,
+                ))
+                .id(),
+        );
+
+        launchers = SpaceShipMissileLauncher {
             swarm_launcher_left,
             swarm_launcher_right,
             homing_launcher,
         };
-        *launchers = launcher;
         commands.entity(entities.player.unwrap()).add_children(&[
             swarm_launcher_left.unwrap(),
             swarm_launcher_right.unwrap(),
@@ -596,6 +672,7 @@ pub fn setup(
                 damage: 10.,
                 from: entities.player,
             });
+        commands.insert_resource(launchers);
     } else {
         info!("Asset not loaded!")
     }

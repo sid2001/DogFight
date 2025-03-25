@@ -44,7 +44,7 @@ use spaceship::SpaceShipPlugin;
 use swarm::SwarmPlugin;
 use terrain::TerrainPlugin;
 use turret::TurretPlugin;
-#[derive(Component)]
+#[derive(Component, Clone)]
 pub struct GameObjectMarker;
 
 pub struct GamePlugin;
@@ -61,8 +61,8 @@ impl Plugin for GamePlugin {
         .add_plugins(SwarmPlugin)
         // .add_plugins(ObstaclePlugin);
         // .add_plugins(TestMeshPlugin);
-        .add_plugins(BotPlugin)
-        .add_plugins(DebugPlugin)
+        // .add_plugins(BotPlugin)
+        // .add_plugins(DebugPlugin)
         .add_plugins(MissilePlugin)
         .add_plugins(MapOnePlugin)
         // .add_plugins(TerrainPlugin)
@@ -79,7 +79,7 @@ impl Plugin for GamePlugin {
             OnEnter(GameState::Game),
             (
                 spaceship::setup,
-                // bots::setup,
+                bots::setup,
                 camera::setup,
                 swarm::setup,
                 turret::setup,

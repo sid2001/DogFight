@@ -136,8 +136,9 @@ impl Default for Bot {
 pub struct BotPlugin;
 impl Plugin for BotPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(BotSpawner::default())
+        app
             // .add_systems(Startup, setup)
+            .add_systems(OnExit(GameState::Game), clear_resources)
             .add_systems(
                 Update,
                 (
@@ -424,174 +425,10 @@ fn shoot_target(
     }
 }
 
-pub fn setup(
-    mut commands: Commands,
-    scene_asset: Res<SceneAssets>,
-    audio_assets: Res<AudioAssets>,
-) {
-    let bot_spaceship = scene_asset.bot_spaceship.clone();
+fn clear_resources(mut commands: Commands) {
+    commands.remove_resource::<BotSpawner>();
+}
 
-    commands
-        .spawn((
-            SceneRoot(bot_spaceship.clone()),
-            BotMotion { ..default() },
-            BotState::Chasing,
-            BotMarker,
-            REAR_VIEW_LAYERS,
-            GameObjectMarker,
-            HomingMissileTarget,
-            AudioPlayer(audio_assets.throttle_up.clone()),
-            PlaybackSettings::LOOP.with_spatial(true),
-            Transform::from_xyz(0., 20., 20.).with_scale(Vec3::new(0.5, 0.5, 0.5)), // .looking_at(Vec3::Y, Vec3::Z), // .with_rotation(Quat::from_rotation_y(std::f32::consts::PI)),
-        ))
-        .with_children(|parent| {
-            parent.spawn((
-                Transform::from_xyz(0., 0., 0.),
-                Turret(TurretBundle {
-                    shooting: false,
-                    speed: 20.,
-                    bullet_size: 0.0002,
-                    shooter: Some(parent.parent_entity()),
-                    ..default()
-                }),
-                AudioPlayer(audio_assets.laser_turret.clone()),
-                PlaybackSettings {
-                    mode: bevy::audio::PlaybackMode::Loop,
-                    paused: true,
-                    spatial: true,
-                    ..default()
-                },
-                BotTurret,
-                TurretMarker,
-            ));
-        });
-    commands
-        .spawn((
-            SceneRoot(bot_spaceship.clone()),
-            BotMotion {
-                acceleration: 6.,
-                angular_steer: 80.,
-                ..default()
-            },
-            AudioPlayer(audio_assets.throttle_up.clone()),
-            PlaybackSettings {
-                mode: bevy::audio::PlaybackMode::Loop,
-                paused: false,
-                spatial: true,
-                ..default()
-            },
-            REAR_VIEW_LAYERS,
-            GameObjectMarker,
-            HomingMissileTarget,
-            BotState::Chasing,
-            BotMarker,
-            Transform::from_xyz(20., 30., 40.).with_scale(Vec3::new(0.5, 0.5, 0.5)), // .looking_at(Vec3::Y, Vec3::Z), // .with_rotation(Quat::from_rotation_y(std::f32::consts::PI)),
-        ))
-        .with_children(|parent| {
-            parent.spawn((
-                Transform::from_xyz(0., 0., 0.),
-                Turret(TurretBundle {
-                    shooting: false,
-                    speed: 20.,
-                    bullet_size: 0.0002,
-                    shooter: Some(parent.parent_entity()),
-                    ..default()
-                }),
-                AudioPlayer(audio_assets.laser_turret.clone()),
-                PlaybackSettings {
-                    mode: bevy::audio::PlaybackMode::Loop,
-                    paused: true,
-                    spatial: true,
-                    ..default()
-                },
-                BotTurret,
-                TurretMarker,
-            ));
-        });
-    commands
-        .spawn((
-            SceneRoot(scene_asset.bot_spaceship3.clone()),
-            BotMotion {
-                acceleration: 4.,
-                angular_steer: 40.,
-                ..default()
-            },
-            AudioPlayer(audio_assets.throttle_up.clone()),
-            PlaybackSettings {
-                mode: bevy::audio::PlaybackMode::Loop,
-                paused: false,
-                spatial: true,
-                ..default()
-            },
-            REAR_VIEW_LAYERS,
-            GameObjectMarker,
-            BotState::Chasing,
-            HomingMissileTarget,
-            BotMarker,
-            Transform::from_xyz(0., 0., 0.).with_scale(Vec3::new(0.5, 0.5, 0.5)), // .looking_at(Vec3::Y, Vec3::Z), // .with_rotation(Quat::from_rotation_y(std::f32::consts::PI)),
-        ))
-        .with_children(|parent| {
-            parent.spawn((
-                Transform::from_xyz(0., 0., 0.),
-                Turret(TurretBundle {
-                    shooting: false,
-                    speed: 20.,
-                    bullet_size: 0.0002,
-                    shooter: Some(parent.parent_entity()),
-                    ..default()
-                }),
-                AudioPlayer(audio_assets.laser_turret.clone()),
-                PlaybackSettings {
-                    mode: bevy::audio::PlaybackMode::Loop,
-                    paused: true,
-                    spatial: true,
-                    ..default()
-                },
-                BotTurret,
-                TurretMarker,
-            ));
-        });
-    commands
-        .spawn((
-            SceneRoot(scene_asset.bot_spaceship2.clone()),
-            BotMotion {
-                acceleration: 10.,
-                angular_steer: 90.,
-                ..default()
-            },
-            AudioPlayer(audio_assets.throttle_up.clone()),
-            PlaybackSettings {
-                mode: bevy::audio::PlaybackMode::Loop,
-                paused: false,
-                spatial: true,
-                ..default()
-            },
-            HomingMissileTarget,
-            BotState::Chasing,
-            BotMarker,
-            REAR_VIEW_LAYERS,
-            GameObjectMarker,
-            Transform::from_xyz(30., 70., 0.).with_scale(Vec3::new(0.5, 0.5, 0.5)), // .looking_at(Vec3::Y, Vec3::Z), // .with_rotation(Quat::from_rotation_y(std::f32::consts::PI)),
-        ))
-        .with_children(|parent| {
-            parent.spawn((
-                Transform::from_xyz(0., 0., 0.),
-                Turret(TurretBundle {
-                    shooting: false,
-                    speed: 20.,
-                    bullet_size: 0.0002,
-                    shooter: Some(parent.parent_entity()),
-                    ..default()
-                }),
-                AudioPlayer(audio_assets.laser_turret.clone()),
-                PlaybackSettings {
-                    mode: bevy::audio::PlaybackMode::Loop,
-                    paused: true,
-                    spatial: true,
-                    ..default()
-                },
-                BotTurret,
-                TurretMarker,
-            ));
-        });
+pub fn setup(mut commands: Commands) {
+    commands.insert_resource(BotSpawner::default());
 }
