@@ -5,8 +5,7 @@ use super::explosion::{ExplosibleObjectMarker, ExplosionEvent};
 use super::missile::HomingMissileTarget;
 use super::spaceship::Health;
 use crate::states::*;
-use bevy::text::cosmic_text::BorrowedWithFontSystem;
-use bevy::{math::VectorSpace, prelude::*};
+use bevy::prelude::*;
 use rand::Rng;
 use std::sync::{Arc, RwLock};
 

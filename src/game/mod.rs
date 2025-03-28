@@ -17,7 +17,6 @@ pub mod swarm;
 mod terrain;
 pub mod turret;
 
-use std::alloc::GlobalAlloc;
 use std::collections::VecDeque;
 
 use oct_tree::*;
@@ -26,7 +25,6 @@ use crate::sets::*;
 use crate::states::{GameState, MenuState};
 use crate::{events::TurretEventPlugin, states::InGameStates};
 use bevy::prelude::*;
-use bevy::state::commands;
 // use bevy_inspector_egui::egui::menu::MenuState;
 use bots::BotPlugin;
 use camera::CameraPlugin;
@@ -61,8 +59,8 @@ impl Plugin for GamePlugin {
         .add_plugins(SwarmPlugin)
         // .add_plugins(ObstaclePlugin);
         // .add_plugins(TestMeshPlugin);
-        // .add_plugins(BotPlugin)
-        // .add_plugins(DebugPlugin)
+        .add_plugins(BotPlugin)
+        .add_plugins(DebugPlugin)
         .add_plugins(MissilePlugin)
         .add_plugins(MapOnePlugin)
         // .add_plugins(TerrainPlugin)
@@ -75,6 +73,10 @@ impl Plugin for GamePlugin {
                 .run_if(in_state(GameState::Game))
                 .run_if(in_state(InGameStates::Play)),
         )
+        // .configure_sets(
+        //     OnEnter(InGameStates::Restart),
+        //     SetupSet::InGame.run_if(in_state(GameState::Game)),
+        // )
         .add_systems(
             OnEnter(GameState::Game),
             (
@@ -94,6 +96,10 @@ impl Plugin for GamePlugin {
         )
         .add_systems(
             OnExit(GameState::Game),
+            despawn_game_entities::<GameObjectMarker>,
+        )
+        .add_systems(
+            OnEnter(InGameStates::Over),
             despawn_game_entities::<GameObjectMarker>,
         );
     }

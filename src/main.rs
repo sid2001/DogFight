@@ -41,6 +41,7 @@ impl OverlayColor {
 
 fn main() {
     App::new()
+        // .insert_resource(Time::<Fixed>::from_hz(40.))
         // .add_plugins(FrameTimeDiagnosticsPlugin::default())
         .add_plugins((
             DefaultPlugins.set(RenderPlugin {

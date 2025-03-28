@@ -126,8 +126,8 @@ fn load_audio_assets(mut audio_assets: ResMut<AudioAssets>, asset_server: Res<As
 
 fn load_menu_assets(
     mut menu_assets: ResMut<MenuAssets>,
-    asset_server: Res<AssetServer>,
     mut loading: ResMut<AssetsLoading>,
+    asset_server: Res<AssetServer>,
 ) {
     let asset_dir = String::from("menu/Menu Buttons/Large Buttons/Large Buttons/");
     *menu_assets = MenuAssets {

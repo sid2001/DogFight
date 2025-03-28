@@ -5,6 +5,7 @@ use super::explosion::{Explosion, ExplosionEvent};
 use super::missile::Missile;
 use super::missile::{HomingMissileShootEvent, HomingMissileTarget, *};
 use super::movement::{Direction, Drag, Inertia, Position};
+use super::swarm;
 use super::swarm::*;
 use super::turret::*;
 use crate::asset_loader::{AudioAssets, SceneAssets};
@@ -25,10 +26,11 @@ use bevy::state::commands;
 use bevy::utils::info;
 use rand::Rng;
 use std::f32::consts::PI;
+use std::fmt::Error;
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
-const DEFAULT_HEALTH: f32 = 100.0;
+const DEFAULT_HEALTH: f32 = 1000.0;
 const DEFAULT_THRUST: Vec3 = Vec3::new(0.5, 0.5, 0.5);
 const DEFAULT_SPAWN: Vec3 = Vec3::ZERO;
 const DEFAULT_ANGULAR_CHANGE: f32 = 50.0;
@@ -40,6 +42,7 @@ const DEFAULT_DIRECTION: (Vec3, Vec3) = (Vec3::Y, Vec3::X);
 const DEFAULT_DRAG: Vec3 = Vec3::new(0.0, 0.0, 0.0);
 const DEFAULT_SPEED_LIMIT: f32 = 1.5;
 const DEFAULT_ROLL_THRUST: f32 = 180.;
+// const SWARM_MISSILE_TIMER: Timer = Timer::new(Duration::from_millis(125), TimerMode::Repeating);
 
 const BOT_MISSILE_OFFSET: Transform = Transform {
     translation: Vec3::new(0., -0.08, -0.1),
@@ -80,6 +83,43 @@ pub struct Health(pub f32);
 impl Health {
     fn new(x: f32) -> Self {
         Self(x)
+    }
+}
+
+#[derive(Resource)]
+pub struct SwarmMissileFireRate(Timer);
+
+#[derive(Resource, Clone)]
+pub struct SwarmMissileQueue {
+    curr_index: usize,
+    events: Option<Vec<SwarmMissileShootEvent>>,
+}
+
+impl SwarmMissileQueue {
+    fn new() -> Self {
+        Self {
+            curr_index: 0,
+            events: None,
+        }
+    }
+    fn insert(&mut self, events: Vec<SwarmMissileShootEvent>) {
+        if events.len() > 0 {
+            self.events = Some(events);
+            self.curr_index = 0;
+        }
+    }
+    fn get(&mut self) -> Result<SwarmMissileShootEvent, ()> {
+        if self.events.is_some() {
+            self.curr_index += 1;
+            let event = self.events.as_ref().unwrap()[self.curr_index - 1].clone();
+            if self.curr_index == self.events.as_ref().unwrap().len() {
+                self.curr_index = 0;
+                self.events = None;
+            }
+            Ok(event)
+        } else {
+            Err(())
+        }
     }
 }
 
@@ -156,7 +196,6 @@ fn spaceship_controls(
     mut ev_turret_off: EventWriter<ShootTurretEventOff>,
     mut ev_turret_on: EventWriter<ShootTurretEventOn>,
     mut missile_equipped: ResMut<MissileEquipped>,
-    mut ev_missile: EventWriter<HomingMissileShootEvent>,
     missile_launcher: Res<SpaceShipMissileLauncher>,
     controls: Res<Controls>,
     keys: Res<ButtonInput<KeyCode>>,
@@ -268,40 +307,37 @@ fn spaceship_controls(
             MissileType::SwarmMissile => MissileType::HomingMissile,
         }
     }
-    if keys.just_pressed(controls.missile_shoot.unwrap()) {
-        let missile = Missile {
-            source: sp_ent,
-            is_locked: homing_target.1.as_secs_f32() > 2.,
-            target: homing_target.0,
-            initial_speed: inertia.velocity.0.length(),
-            thrust: 30.,
-            timer: Duration::ZERO,
-            damage: 100.,
-            velocity: inertia.velocity.0,
-            drag: Vec3::ZERO,
-            angular_speed: 720.,
-        };
-        ev_missile.send(HomingMissileShootEvent {
-            missile,
-            launcher: missile_launcher.homing_launcher.unwrap(),
-        });
-    }
+    // if keys.just_pressed(controls.missile_shoot.unwrap()) {}
 }
 
 fn missile_control(
     mut ev_swarm_missile: EventWriter<SwarmMissileShootEvent>,
-    query: Query<(&Inertia, &Transform), With<SpaceShip>>,
+    mut ev_homing_missile: EventWriter<HomingMissileShootEvent>,
+    mut swarm_missile_queue: ResMut<SwarmMissileQueue>,
+    mut s_timer: ResMut<SwarmMissileFireRate>,
+    homing_target: ResMut<SpaceShipHomingTarget>,
+    query: Query<(Entity, &Inertia, &Transform), With<SpaceShip>>,
     missile_equipped: Res<MissileEquipped>,
     missile_launcher: Res<SpaceShipMissileLauncher>,
     s_query: Query<(Entity, &Transform), With<SwarmMissileTarget>>,
     keys: Res<ButtonInput<KeyCode>>,
     controls: Res<Controls>,
+    time: Res<Time>,
 ) {
+    if let Some(_) = &swarm_missile_queue.events {
+        if s_timer.0.tick(time.delta()).just_finished() {
+            if let Ok(ev) = swarm_missile_queue.get() {
+                ev_swarm_missile.send(ev);
+            }
+        }
+    }
     // will panic if more than two, will change later
-    let (inertia, trans) = query.single();
+    let (sp_ent, inertia, trans) = query.single();
     if keys.just_pressed(controls.missile_shoot.unwrap()) {
         match missile_equipped.0 {
             MissileType::SwarmMissile => {
+                let mut missiles = Vec::<SwarmMissileShootEvent>::new();
+                let mut turn = 0_u32;
                 let mut rng = rand::rng();
                 let mut dir;
                 let mut axis = Vec3::Y;
@@ -330,6 +366,7 @@ fn missile_control(
 
                         let missile = SwarmMissile {
                             stage: SwarmMissileStage::Stage1(dir),
+                            source: sp_ent,
                             angluar_speed: 120.,
                             initial_speed: inertia.velocity.0.length(),
                             converge_point: (trans.translation
@@ -338,14 +375,38 @@ fn missile_control(
                             timer: Duration::ZERO,
                             target: Some(target),
                         };
-                        ev_swarm_missile.send(SwarmMissileShootEvent {
-                            launcher: missile_launcher.swarm_launcher_left.unwrap(),
+                        missiles.push(SwarmMissileShootEvent {
+                            launcher: if turn == 0 {
+                                turn = 1;
+                                missile_launcher.swarm_launcher_left.unwrap()
+                            } else {
+                                turn = 0;
+                                missile_launcher.swarm_launcher_right.unwrap()
+                            },
                             missile,
                         });
                     }
                 }
+                swarm_missile_queue.insert(missiles);
             }
-            MissileType::HomingMissile => {}
+            MissileType::HomingMissile => {
+                let missile = Missile {
+                    source: sp_ent,
+                    is_locked: homing_target.1.as_secs_f32() > 2.,
+                    target: homing_target.0,
+                    initial_speed: inertia.velocity.0.length(),
+                    thrust: 30.,
+                    timer: Duration::ZERO,
+                    damage: 100.,
+                    velocity: inertia.velocity.0,
+                    drag: Vec3::ZERO,
+                    angular_speed: 720.,
+                };
+                ev_homing_missile.send(HomingMissileShootEvent {
+                    missile,
+                    launcher: missile_launcher.homing_launcher.unwrap(),
+                });
+            }
         }
     }
 }
@@ -475,15 +536,11 @@ fn spaceship_orientation(
         .get_mut(entities.player.unwrap())
         .expect("Cannot get player entity!");
 
-    // let mut curr_dir = Vec3::ZERO;
     let curr_dir = trans.forward();
     let target_dir = dir.0.clone();
 
     let roll_curr = trans.right();
     let roll_target = dir.1.clone();
-
-    // info!("{:?}", curr_dir);
-    // info!("{:?}", target_dir);
 
     let rotation =
         Quat::from_rotation_arc(curr_dir.normalize_or_zero(), target_dir.normalize_or_zero());
@@ -496,10 +553,25 @@ fn spaceship_orientation(
     trans.rotate(roll);
 }
 
+fn game_over(
+    query: Query<(Entity, &Health), With<SpaceShip>>,
+    mut commands: Commands,
+    mut in_game_state: ResMut<NextState<InGameStates>>,
+) {
+    // will panic if more than one
+    let (ent, health) = query.single();
+    if health.0 <= 0.0 {
+        commands.entity(ent).despawn_recursive();
+        in_game_state.set(InGameStates::Over);
+    }
+}
+
 fn clean_resources(mut commands: Commands) {
     commands.remove_resource::<MissileEquipped>();
     commands.remove_resource::<SpaceShipHomingTarget>();
     commands.remove_resource::<SpaceShipMissileLauncher>();
+    commands.remove_resource::<SwarmMissileFireRate>();
+    commands.remove_resource::<SwarmMissileQueue>();
 }
 
 pub fn setup(
@@ -510,6 +582,12 @@ pub fn setup(
 ) {
     commands.insert_resource(MissileEquipped(MissileType::HomingMissile));
     commands.insert_resource(SpaceShipHomingTarget(None, Duration::ZERO));
+    commands.insert_resource(SwarmMissileFireRate(Timer::new(
+        Duration::from_millis(125),
+        TimerMode::Repeating,
+    )));
+    commands.insert_resource(SwarmMissileQueue::new());
+
     let mut launchers = SpaceShipMissileLauncher::default();
     if let Some(spaceship_scene) = scene_assets.spaceship.clone().into() {
         info!("spawning spacehip");

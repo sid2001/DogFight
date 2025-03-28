@@ -21,6 +21,8 @@ pub enum InGameStates {
     #[default]
     Play,
     Quit,
+    Over,
+    Restart,
 }
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, States)]
 pub enum SpaceShipActionState {

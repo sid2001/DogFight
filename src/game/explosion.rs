@@ -4,11 +4,8 @@ use super::{swarm::*, GameObjectMarker};
 use crate::asset_loader::SceneAssets;
 use crate::sets::*;
 use bevy::audio::Volume;
+use bevy::prelude::*;
 use bevy::render::primitives::Aabb;
-use bevy::{
-    core_pipeline::bloom::Bloom, gizmos::aabb, prelude::*, render::texture::FallbackImage,
-    utils::info,
-};
 #[derive(Component)]
 pub struct ExplosibleObjectMarker;
 

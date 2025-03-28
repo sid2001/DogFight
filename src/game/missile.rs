@@ -74,6 +74,7 @@ pub enum SwarmMissileStage {
 
 #[derive(Component, Clone)]
 pub struct SwarmMissile {
+    pub source: Entity,
     pub stage: SwarmMissileStage,
     pub initial_speed: f32,
     pub speed: f32,
@@ -83,7 +84,7 @@ pub struct SwarmMissile {
     pub angluar_speed: f32,
 }
 
-#[derive(Event)]
+#[derive(Event, Clone)]
 pub struct SwarmMissileShootEvent {
     pub launcher: Entity,
     pub missile: SwarmMissile,
