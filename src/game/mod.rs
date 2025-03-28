@@ -19,6 +19,7 @@ pub mod turret;
 
 use std::collections::VecDeque;
 
+use bevy::tasks::futures_lite::stream::Once;
 use oct_tree::*;
 
 use crate::sets::*;
@@ -42,6 +43,10 @@ use spaceship::SpaceShipPlugin;
 use swarm::SwarmPlugin;
 use terrain::TerrainPlugin;
 use turret::TurretPlugin;
+
+#[derive(Resource)]
+pub struct GameOverTimeOut(Timer);
+
 #[derive(Component, Clone)]
 pub struct GameObjectMarker;
 
@@ -51,7 +56,6 @@ impl Plugin for GamePlugin {
         app.add_plugins(TurretPlugin {
             bullet_scene_path: String::from("lazer_bullet.glb#Scene0"),
         })
-        // .add_plugins(LandscapePlugin)
         .add_plugins(TurretEventPlugin)
         .add_plugins(CameraPlugin)
         .add_plugins(SpaceShipPlugin)
@@ -77,17 +81,23 @@ impl Plugin for GamePlugin {
         //     OnEnter(InGameStates::Restart),
         //     SetupSet::InGame.run_if(in_state(GameState::Game)),
         // )
-        .add_systems(
-            OnEnter(GameState::Game),
-            (
-                spaceship::setup,
-                bots::setup,
-                camera::setup,
-                swarm::setup,
-                turret::setup,
-            )
-                .in_set(SetupSet::InGame),
+        .configure_sets(
+            OnEnter(InGameStates::Setup),
+            SetupSet::InGame.run_if(in_state(GameState::Game)),
         )
+        // .add_systems(
+        //     OnEnter(InGameStates::Setup),
+        //     (
+        //         // spaceship::setup,
+        //         // bots::setup,
+        //         // camera::setup,
+        //         // swarm::setup,
+        //         // turret::setup,
+        //     )
+        //         .in_set(SetupSet::InGame)
+        //         .run_if(in_state(GameState::Game)),
+        // )
+        .add_systems(OnEnter(GameState::Game), setup)
         .add_systems(
             Update,
             (in_game_state_action, visualize_oct_tree)
@@ -98,10 +108,34 @@ impl Plugin for GamePlugin {
             OnExit(GameState::Game),
             despawn_game_entities::<GameObjectMarker>,
         )
-        .add_systems(
-            OnEnter(InGameStates::Over),
-            despawn_game_entities::<GameObjectMarker>,
-        );
+        .add_systems(OnEnter(InGameStates::Setup), start_game)
+        // .add_systems(
+        //     OnExit(InGameStates::Over),
+        //     despawn_game_entities::<GameObjectMarker>,
+        // )
+        .add_systems(Update, game_over.run_if(in_state(InGameStates::Over)));
+    }
+}
+
+fn setup(mut commands: Commands) {
+    commands.insert_resource(GameOverTimeOut(Timer::from_seconds(3.0, TimerMode::Once)));
+}
+
+fn start_game(mut in_game_state: ResMut<NextState<InGameStates>>) {
+    in_game_state.set(InGameStates::Play);
+}
+
+fn game_over(
+    mut commands: Commands,
+    mut game_state: ResMut<NextState<GameState>>,
+    mut in_game_state: ResMut<NextState<InGameStates>>,
+    mut timer: ResMut<GameOverTimeOut>,
+    time: Res<Time>,
+) {
+    if timer.0.tick(time.delta()).just_finished() {
+        commands.remove_resource::<GameOverTimeOut>();
+        game_state.set(GameState::Menu);
+        in_game_state.set(InGameStates::None);
     }
 }
 

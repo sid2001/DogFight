@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use bevy::render::view::RenderLayers;
+use bevy::state::commands;
 use rand::Rng;
 use std::sync::{Arc, RwLock};
 
@@ -20,20 +21,24 @@ use bevy::pbr::*;
 pub struct MapOnePlugin;
 impl Plugin for MapOnePlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(InsertedEmissive(false))
-            .add_systems(
-                OnEnter(GameState::Game),
-                (setup_lights, setup)
-                    .chain()
-                    .in_set(SetupSet::InGame)
-                    .run_if(in_state(GameState::Game)),
-            )
-            .add_systems(
-                Update,
-                (insert_emissive_property, revolve_satellites, spin_sun)
-                    .in_set(UpdateSet::InGame)
-                    .run_if(in_state(GameState::Game)),
-            );
+        app.add_systems(
+            OnEnter(InGameStates::Setup),
+            (setup_lights, setup).chain().in_set(SetupSet::InGame), // .run_if(in_state(GameState::Game)),
+        )
+        .add_systems(
+            Update,
+            (insert_emissive_property, revolve_satellites, spin_sun)
+                .in_set(UpdateSet::InGame)
+                .run_if(in_state(GameState::Game)),
+        )
+        .add_systems(
+            OnEnter(InGameStates::Over),
+            clean_resources.in_set(ClearSet::InGame),
+        )
+        .add_systems(
+            OnExit(GameState::Game),
+            clean_resources.in_set(ClearSet::InGame),
+        );
     }
 }
 
@@ -114,6 +119,10 @@ pub struct Satellite {
 #[derive(Component)]
 pub struct SatelliteMarker;
 
+fn clean_resources(mut commands: Commands) {
+    commands.remove_resource::<InsertedEmissive>();
+}
+
 fn setup(
     map_assets: Res<MapOneAssets>,
     mut commands: Commands,
@@ -121,6 +130,7 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
+    commands.insert_resource(InsertedEmissive(false));
     commands.spawn((
         SceneRoot(scene_asset.map_marker.clone()),
         Transform::from_xyz(30., 30., 30.).with_scale(Vec3::splat(0.5)),

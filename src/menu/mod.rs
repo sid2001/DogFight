@@ -187,7 +187,7 @@ fn menu_action(
             (Interaction::Pressed, Some(MenuAction::Start)) => {
                 game_state.set(GameState::Game);
                 menu_state.set(MenuState::Exit);
-                in_game_state.set(InGameStates::Play);
+                in_game_state.set(InGameStates::Setup);
             }
             _ => (),
         }

@@ -18,11 +18,13 @@ pub enum MenuState {
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash, States)]
 pub enum InGameStates {
     Paused,
-    #[default]
     Play,
     Quit,
     Over,
+    Setup,
     Restart,
+    #[default]
+    None,
 }
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, States)]
 pub enum SpaceShipActionState {

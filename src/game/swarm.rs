@@ -3,6 +3,7 @@ use super::missile::SwarmMissileTarget;
 use super::{collider::*, GameObjectMarker};
 use crate::asset_loader::{AudioAssets, SceneAssets};
 use crate::sets::*;
+use crate::states::*;
 use bevy::prelude::*;
 use rand::Rng;
 use std::collections::HashMap;
@@ -222,8 +223,7 @@ impl SwarmPoint {
 pub struct SwarmPlugin;
 impl Plugin for SwarmPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(SwarmTracker(HashMap::new(), SwarmIdPool::default()))
-            // .add_systems(Startup, setup)
+        app.add_systems(OnEnter(InGameStates::Setup), setup)
             .add_systems(Update, release_bots.in_set(UpdateSet::InGame))
             .add_systems(
                 Update,
@@ -241,11 +241,18 @@ impl Plugin for SwarmPlugin {
                 )
                     .chain()
                     .in_set(UpdateSet::InGame),
-            );
+            )
+            .add_systems(OnExit(GameState::Game), clear_resources)
+            .add_systems(OnEnter(InGameStates::Over), clear_resources);
     }
 }
 
+fn clear_resources(mut commands: Commands) {
+    commands.remove_resource::<SwarmTracker>();
+}
+
 pub fn setup(mut commands: Commands, scene_assets: Res<SceneAssets>) {
+    commands.insert_resource(SwarmTracker(HashMap::new(), SwarmIdPool::default()));
     let swarm = SwarmPoint::default();
     let origin = swarm.xyz();
     let transform =

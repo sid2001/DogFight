@@ -7,6 +7,12 @@ pub enum SetupSet {
 }
 
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub enum ClearSet {
+    InGame,
+    Menu,
+}
+
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum UpdateSet {
     InGame,
     Menu,

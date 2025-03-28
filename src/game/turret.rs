@@ -5,6 +5,7 @@ use super::collider;
 use super::spaceship::Health;
 use super::{collider::*, GameObjectMarker};
 use crate::sets::*;
+use crate::states::*;
 use bevy::prelude::*;
 
 const DEFAULT_BULLET_RANGE: f32 = 20.;
@@ -97,7 +98,7 @@ impl Plugin for TurretPlugin {
                 TimerMode::Repeating,
             )))
             .insert_resource(BulletScenePath(self.bullet_scene_path.clone()))
-            .add_systems(Startup, setup)
+            .add_systems(OnEnter(InGameStates::Setup), setup.in_set(SetupSet::InGame))
             // .add_systems(Update, shoot_turret)
             .add_systems(
                 Update,

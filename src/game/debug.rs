@@ -34,8 +34,7 @@ impl Plugin for DebugPlugin {
             Update,
             (detect_obstacle, avoid_obstacle)
                 .chain()
-                .in_set(UpdateSet::InGame)
-                .run_if(in_state(GameState::Game)),
+                .in_set(UpdateSet::InGame), // .run_if(in_state(GameState::Game)),
         );
         // .add_systems(PostStartup, mark_spaceship);
     }

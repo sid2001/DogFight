@@ -3,6 +3,7 @@ use super::spaceship::{Entities, SpaceShip};
 use super::GameObjectMarker;
 use crate::controls::Controls;
 use crate::sets::*;
+use crate::states::*;
 use bevy::core_pipeline::bloom::Bloom;
 use bevy::core_pipeline::{core_3d::ScreenSpaceTransmissionQuality, tonemapping::Tonemapping};
 use bevy::render::camera::Viewport;
@@ -62,7 +63,7 @@ pub struct CameraPlugin;
 impl Plugin for CameraPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(FrameCounter { frame: 0 })
-            // .add_systems(Startup, setup)
+            .add_systems(OnEnter(InGameStates::Setup), setup.in_set(SetupSet::InGame))
             .add_systems(
                 Update,
                 (

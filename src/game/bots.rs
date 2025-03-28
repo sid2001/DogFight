@@ -135,8 +135,7 @@ impl Default for Bot {
 pub struct BotPlugin;
 impl Plugin for BotPlugin {
     fn build(&self, app: &mut App) {
-        app
-            // .add_systems(Startup, setup)
+        app.add_systems(OnEnter(InGameStates::Setup), setup.in_set(SetupSet::InGame))
             .add_systems(OnExit(GameState::Game), clear_resources)
             .add_systems(
                 Update,
