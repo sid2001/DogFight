@@ -14,5 +14,18 @@ Oct-tree spatial division for better collision detection
 Swarm enemies can flock with their surrounding bots
 
 
-https://github.com/user-attachments/assets/0b039819-3301-4c59-bcb5-772cee1b9e57
 
+![swarm-ezgif com-optimize](https://github.com/user-attachments/assets/f51d2186-2d05-4c4b-832f-48261fbdb49b)
+
+
+
+Homing Missile
+
+
+![homing](https://github.com/user-attachments/assets/e2009314-e400-426d-8606-6ba96e3e4cb7)
+
+
+Swarm Missile
+
+
+![sarmmissile-ezgif com-optimize](https://github.com/user-attachments/assets/05c69d5c-a85e-42b7-abe1-bb1effaf15d4)
