@@ -24,7 +24,7 @@ The game presents a simple survival type play through
 
 ## Sounds
 A spatial sound system to give palyers a more imerssive experience
- - Engine humming
+ - Engine humming and throttle sound
  - Turret sound
  - Missile launch and cruise sound
  - Explosions
