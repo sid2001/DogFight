@@ -11,7 +11,7 @@ The game presents a simple survival type play through
      * Adhesion: Bots try to avoid collision when they get too close with each other.
  - The enviroment replicates a simple solar system with the planets rotating on it's axis and around the Sun.
  - All entites are enclosed with collision meshes which is used to detect collision.
- - Collision logic to detect collision, it uses oct-tree data structure to divide the 3d space spatially into octants to make the collision detection more efficient. O(nlog(n)) time from O(n<sup>2</sup>).
+ - To detect collision, it uses oct-tree data structure to divide the 3d space spatially into octants to make the collision detection more efficient. O(nlog(n)) time from O(n<sup>2</sup>).
  - Bigger bots can avoid obstacles while chasing the player making the game more challenging.
 
 ## State Management and Resource Management
