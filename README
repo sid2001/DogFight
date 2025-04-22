@@ -1,5 +1,8 @@
-DogFight: A multiplayer space shooter game.
+# A Space Shooter Game
 
-Log 1 =>
-  Initialised basic mechanics like spawning camera, assets, sound, movement logic,
-  Next: Third person view. 
+The game presents an endless enemies spawning with the scores counting the more you kill.
+
+## Demo
+
+Oct-tree spatial division for better collision detection
+
