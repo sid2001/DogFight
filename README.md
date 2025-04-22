@@ -23,7 +23,11 @@ The game presents a simple survival type play through
  - Swarm Missile: An infinite ammo with cooldown period, this weapon is designed to chase and kill swarm bots.
 
 ## Sounds
-The game simple sound system to give palyers a more imerssive experience
+A spatial sound system to give palyers a more imerssive experience
+ - Engine humming
+ - Turret sound
+ - Missile launch and cruise sound
+ - Explosions
 
 ## Demo
 
