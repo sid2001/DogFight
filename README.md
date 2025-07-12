@@ -49,6 +49,12 @@ Swarm missiles are designed to track and kill swarm bots.
 
 ![sarmmissile-ezgif com-optimize](https://github.com/user-attachments/assets/05c69d5c-a85e-42b7-abe1-bb1effaf15d4)
 
+Obstacle avoidance system for bots
+![colli_avoid1](https://github.com/user-attachments/assets/7251152b-eb63-4a81-9c7b-98c9d666a37e)
+
+![colli_avoid1](https://github.com/user-attachments/assets/95a80bb3-2f0a-4f22-b1e1-c1c2d606aae1)
+
+
 ## Todo
  - HUD display
  - Multiplayer
